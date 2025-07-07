@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
 import './index.css';
+import JSONTree from './components/JSONTree';
 
 function App() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileContent, setFileContent] = useState<any>(null);
     const [isDragActive, setIsDragActive] = useState(false);
-
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Funcția pentru procesarea fișierului (folosită și pentru input și pentru drag&drop)
@@ -71,7 +71,7 @@ function App() {
     };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
+    <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col">
       {/* Input invizibil pentru selectarea fișierelor */}
       <input
         type="file"
@@ -82,7 +82,7 @@ function App() {
       />
 
       {/* Conținutul principal */}
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto w-full flex flex-col flex-grow">
         <h1 className="text-4xl font-bold text-center mb-4 text-blue-400">
           JSON Explorer
         </h1>
@@ -90,7 +90,7 @@ function App() {
           A graphic editor for JSON files.
         </p>
         
-        <div className="bg-gray-800 rounded-lg p-8 shadow-lg"
+        <div className={`bg-gray-800 rounded-lg p-8 shadow-lg flex flex-col ${fileContent ? 'flex-grow' : ''}`}
              onDragOver={handleDragOver}
              onDragLeave={handleDragLeave}
              onDrop={handleDrop}
@@ -146,15 +146,15 @@ function App() {
             </div>
           )}
 
-          {/* Afișează conținutul JSON */}
+          {/* Afișează conținutul JSON cu Tree View */}
           {fileContent && (
-            <div className="mt-6 p-4 bg-gray-700 rounded-lg">
-              <h3 className="text-lg font-semibold text-green-400 mb-2">
-                JSON content:
+            <div className="mt-6 p-4 bg-gray-700 rounded-lg flex flex-col flex-grow">
+              <h3 className="text-lg font-semibold text-green-400 mb-4">
+                📊 JSON Explorer - Tree View:
               </h3>
-              <pre className="text-sm text-gray-300 overflow-auto max-h-64 bg-gray-800 p-3 rounded">
-                {JSON.stringify(fileContent, null, 2)}
-              </pre>
+              <div className="bg-gray-800 p-4 rounded-lg overflow-auto flex-grow">
+                <JSONTree data={fileContent} />
+              </div>
             </div>
           )}
         </div>
