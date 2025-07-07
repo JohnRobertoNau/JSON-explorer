@@ -1,0 +1,108 @@
+{
+  "aplicatie": {
+    "nume": "JSON Explorer",
+    "versiune": "1.0.0",
+    "descriere": "Un editor grafic pentru fișiere JSON cu funcții de drag & drop",
+    "tehnologii": [
+      "React",
+      "TypeScript",
+      "Tailwind CSS",
+      "Vite",
+      "React DND"
+    ],
+    "caracteristici": {
+      "upload": "Drag & drop fișiere",
+      "editare": "Editor în timp real",
+      "vizualizare": "Afișare ierarhică",
+      "salvare": "Download fișiere modificate"
+    }
+  },
+  "utilizatori": [
+    {
+      "id": 1,
+      "nume": "John Doe",
+      "email": "john@example.com",
+      "activ": true,
+      "rol": "admin",
+      "ultimaAccesare": "2025-07-07T10:30:00Z",
+      "preferinte": {
+        "tema": "dark",
+        "limba": "ro",
+        "notificari": true
+      }
+    },
+    {
+      "id": 2,
+      "nume": "Maria Popescu",
+      "email": "maria@example.com",
+      "activ": false,
+      "rol": "user",
+      "ultimaAccesare": "2025-07-05T14:20:00Z",
+      "preferinte": {
+        "tema": "light",
+        "limba": "en",
+        "notificari": false
+      }
+    },
+    {
+      "id": 3,
+      "nume": "Alexandru Ionescu",
+      "email": "alex@example.com",
+      "activ": true,
+      "rol": "editor",
+      "ultimaAccesare": "2025-07-07T09:15:00Z",
+      "preferinte": {
+        "tema": "dark",
+        "limba": "ro",
+        "notificari": true
+      }
+    }
+  ],
+  "configurari": {
+    "server": {
+      "port": 3000,
+      "host": "localhost",
+      "ssl": false,
+      "maxConnections": 100
+    },
+    "baza_date": {
+      "tip": "MongoDB",
+      "url": "mongodb://localhost:27017/json_explorer",
+      "timeout": 5000,
+      "poolSize": 10
+    },
+    "cache": {
+      "enabled": true,
+      "ttl": 3600,
+      "maxSize": "100MB"
+    }
+  },
+  "statistici": {
+    "totalUtilizatori": 1250,
+    "utilizatoriActivi": 847,
+    "fisiereProcesate": 5630,
+    "dimensiuneMedie": "2.5MB",
+    "timpMediuProcesat": "1.2s",
+    "evaluari": {
+      "total": 342,
+      "medie": 4.7,
+      "distributie": {
+        "5_stele": 234,
+        "4_stele": 87,
+        "3_stele": 15,
+        "2_stele": 4,
+        "1_stea": 2
+      }
+    }
+  },
+  "metadata": {
+    "creat": "2025-07-07T11:00:00Z",
+    "modificat": "2025-07-07T11:30:00Z",
+    "versiune": "1.0",
+    "autor": "JSON Explorer Team",
+    "licenta": "MIT",
+    "taguri": ["json", "editor", "web", "react", "typescript"],
+    "fisierTest": true,
+    "observatii": "Fișier de test pentru demonstrarea funcționalităților JSON Explorer"
+  }
+}

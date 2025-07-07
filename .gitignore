@@ -1,0 +1,8 @@
+# Ignoră node_modules și alte fișiere generate automat
+node_modules/
+dist/
+.env
+*.log
+*.lock
+.vscode/
+*.DS_Store
