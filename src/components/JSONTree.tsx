@@ -6,11 +6,32 @@ interface JSONTreeProps {
   level?: number;
   isEditing?: boolean; // Am adăugat noua proprietate opțională
   onDataChange?: (newData: any) => void; // Callback pentru propagarea modificărilor
+  onPathBasedChange?: (path: (string | number)[], newValue: any) => void; // Nou callback pentru modificări bazate pe path
+  // Props-uri noi pentru tooltip:
+  onMouseEnter?: (name: string, type: string, value: any) => void;
+  onMouseLeave?: () => void;
+  onMouseMove?: (event: React.MouseEvent) => void;
+  // Props pentru path-based operations:
+  path?: (string | number)[]; // Calea către acest element în structura JSON
+  onDeleteElement?: (path: (string | number)[]) => void; // Callback pentru ștergere
 }
 
-const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = false, onDataChange }) => {
+const JSONTree: React.FC<JSONTreeProps> = ({ 
+  data, 
+  name, 
+  level = 0, 
+  isEditing = false, 
+  onDataChange,
+  onPathBasedChange,
+  onMouseEnter,
+  onMouseLeave,
+  onMouseMove,
+  path = [], // Calea implicită este un array gol (root)
+  onDeleteElement
+}) => {
   const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand primele 2 niveluri
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: string; value: any; key?: string } | null>(null);
+  const [typeSelectionMenu, setTypeSelectionMenu] = useState<{ x: number; y: number; targetType: 'object' | 'array' | 'primitive'; targetKey?: string } | null>(null);
 
   // Handler pentru click-dreapta
   const handleContextMenu = (event: React.MouseEvent, value: any, key?: string) => {
@@ -22,9 +43,37 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
     const type = getValueType(value);
     
     // Calculăm poziția pentru meniu bazat pe poziția cursorului
+    // Adăugăm logică pentru a evita ieșirea din ecran
+    const menuWidth = 180; // Lățimea aproximativă a meniului (mai mare pentru siguranță)
+    const menuHeight = type === 'object' ? 120 : type === 'array' ? 120 : 160; // Înălțimea variabilă în funcție de tipul meniului
+    const padding = 20; // Padding mai mare de la marginea ecranului
+    
+    let x = event.clientX;
+    let y = event.clientY;
+    
+    // Verificăm dacă meniul ar ieși din partea dreaptă a ecranului
+    if (x + menuWidth > window.innerWidth - padding) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+    
+    // Verificăm dacă meniul ar ieși din partea de jos a ecranului
+    if (y + menuHeight > window.innerHeight - padding) {
+      // Încercăm să îl poziționăm deasupra cursorului
+      y = event.clientY - menuHeight - 10;
+      
+      // Dacă nici deasupra nu încape, îl punem cât mai sus posibil
+      if (y < padding) {
+        y = window.innerHeight - menuHeight - padding;
+      }
+    }
+    
+    // Nu lăsăm meniul să iasă din partea de sus sau stânga
+    if (x < padding) x = padding;
+    if (y < padding) y = padding;
+    
     setContextMenu({ 
-      x: event.clientX, 
-      y: event.clientY,
+      x: x, 
+      y: y,
       type: type,
       value: value,
       key: key
@@ -37,6 +86,171 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
       event.stopPropagation();
     }
     setContextMenu(null);
+    setTypeSelectionMenu(null);
+  };
+
+  const addElement = (
+    elementType: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null'
+  ): void => {
+    // Folosim typeSelectionMenu pentru a obține informațiile despre context
+    const currentContext = typeSelectionMenu || contextMenu;
+    if (!currentContext) return;
+
+    let fieldName = '';
+    let newValue: any;
+
+    // Determinăm tipul contextului
+    const contextType = typeSelectionMenu ? typeSelectionMenu.targetType : contextMenu!.type;
+
+    // Pentru array-uri, nu avem nevoie de nume de câmp
+    if (contextType === 'array') {
+      // Pentru array-uri, creăm direct valoarea în funcție de tip
+      switch(elementType) {
+        case 'object':
+          newValue = {};
+          break;
+        case 'array':
+          newValue = [];
+          break;
+        case 'string':
+          const stringValue = prompt(`Enter the string value:`) || '';
+          newValue = stringValue;
+          break;
+        case 'number':
+          const numberValue = prompt(`Enter the number value:`);
+          if (numberValue === null) return;
+          const parsedNumber = parseFloat(numberValue);
+          if (isNaN(parsedNumber)) {
+            alert('Invalid number format');
+            return;
+          }
+          newValue = parsedNumber;
+          break;
+        case 'boolean':
+          const boolValue = confirm(`Set value to true? (Cancel for false)`);
+          newValue = boolValue;
+          break;
+        case 'null':
+          newValue = null;
+          break;
+        default:
+          console.error(`Unknown element type: ${elementType}`);
+          return;
+      }
+
+      console.log(`Adding ${elementType} to array with value:`, newValue);
+      
+      if (onPathBasedChange) {
+        // Pentru array-uri, modificăm array-ul întreg la path-ul curent
+        const newArray = [...data, newValue];
+        onPathBasedChange(path, newArray); // Modificăm array-ul întreg la path-ul curent
+      } else if (onDataChange) {
+        const newData = [...data, newValue];
+        onDataChange(newData);
+      }
+    } 
+    // Pentru obiecte și primitive, avem nevoie de nume de câmp
+    else {
+      fieldName = prompt(`Enter the name of the new field:`) || '';
+      if (!fieldName.trim()) {
+        return; // Anulează dacă nu e introdus un nume valid
+      }
+
+      // Verifică dacă câmpul există deja
+      if (typeof data === 'object' && data !== null && data.hasOwnProperty(fieldName)) {
+        const overwrite = confirm(`Field "${fieldName}" already exists. Do you want to overwrite it?`);
+        if (!overwrite) return;
+      }
+
+      switch(elementType) {
+        case 'object':
+          newValue = {};
+          break;
+        case 'array':
+          newValue = [];
+          break;
+        case 'string':
+          const stringValue = prompt(`Enter the string value for "${fieldName}":`) || '';
+          newValue = stringValue;
+          break;
+        case 'number':
+          const numberValue = prompt(`Enter the number value for "${fieldName}":`);
+          if (numberValue === null) return;
+          const parsedNumber = parseFloat(numberValue);
+          if (isNaN(parsedNumber)) {
+            alert('Invalid number format');
+            return;
+          }
+          newValue = parsedNumber;
+          break;
+        case 'boolean':
+          const boolValue = confirm(`Set "${fieldName}" to true? (Cancel for false)`);
+          newValue = boolValue;
+          break;
+        case 'null':
+          newValue = null;
+          break;
+        default:
+          console.error(`Unknown element type: ${elementType}`);
+          return;
+      }
+
+      console.log(`Adding ${elementType} "${fieldName}" with value:`, newValue);
+      
+      if (onPathBasedChange) {
+        // Pentru obiecte, calculăm path-ul către noul câmp
+        const newFieldPath = [...path, fieldName];
+        onPathBasedChange(newFieldPath, newValue); // Adăugăm noul câmp la path-ul specificat
+      } else if (onDataChange) {
+        if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+          const newData = { ...data, [fieldName]: newValue };
+          onDataChange(newData);
+        }
+      }
+    }
+  };
+
+  const showTypeSelectionMenu = (x: number, y: number) => {
+    const typeMenuWidth = 150; // Lățimea meniului de tip (mai mare)
+    const typeMenuHeight = 200; // Înălțimea meniului de tip (6 opțiuni * ~33px fiecare)
+    const padding = 20; // Padding mai mare
+    
+    // Calculăm poziția inițială (alături de meniul contextual)
+    let typeMenuX = x + 200; // Poziționează meniul alături de cel contextual
+    let typeMenuY = y;
+    
+    // Verificăm dacă meniul de tip ar ieși din partea dreaptă a ecranului
+    if (typeMenuX + typeMenuWidth > window.innerWidth - padding) {
+      // Dacă nu încape în dreapta, îl punem în stânga meniului contextual
+      typeMenuX = x - typeMenuWidth - 20;
+      
+      // Dacă nici în stânga nu încape, îl punem cât mai aproape de marginea stângă
+      if (typeMenuX < padding) {
+        typeMenuX = padding;
+      }
+    }
+    
+    // Verificăm dacă meniul de tip ar ieși din partea de jos a ecranului
+    if (typeMenuY + typeMenuHeight > window.innerHeight - padding) {
+      // Încercăm să îl poziționăm deasupra
+      typeMenuY = y - typeMenuHeight - 10;
+      
+      // Dacă nici deasupra nu încape, îl punem cât mai sus posibil
+      if (typeMenuY < padding) {
+        typeMenuY = window.innerHeight - typeMenuHeight - padding;
+      }
+    }
+    
+    // Nu lăsăm meniul să iasă din partea de sus
+    if (typeMenuY < padding) typeMenuY = padding;
+    
+    // Nu mai resetăm contextMenu aici, ci doar afișăm meniul de selecție
+    setTypeSelectionMenu({ 
+      x: typeMenuX,
+      y: typeMenuY,
+      targetType: contextMenu?.type as 'object' | 'array' | 'primitive',
+      targetKey: contextMenu?.key 
+    });
   };
 
   // Handler pentru opțiunile din meniu
@@ -45,45 +259,64 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
     
     const { type, value, key } = contextMenu;
     
-    // Închide meniul mai întâi
-    setContextMenu(null);
-    
     // Acțiuni pentru OBIECTE
     if (type === 'object') {
       switch (action) {
         case 'rename':
-          const newValue1 = prompt(`Enter the new name for "${key}":`);
-          // alert(`Redenumește obiectul: "${key}"`);
-          if (newValue1 != null) {
-            console.log(`The name has changed ` + newValue1);
-            // TODO: save the change
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const newObjectName = prompt(`Enter the new name for object "${key}":`);
+          if (newObjectName !== null && newObjectName.trim() !== '') {
+            console.log(`Renaming object from "${key}" to "${newObjectName}"`);
+            // TODO: Implementare: modifică cheia obiectului și apelează onDataChange
           }
-          // TODO: Implementare: modifică cheia obiectului și apelează onDataChange
           break;
         case 'delete':
-          // TODO: Implementare: șterge obiectul și apelează onDataChange
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const confirmObjectDelete = confirm(`Are you sure you want to delete the object "${key}"?`);
+          if (confirmObjectDelete) {
+            console.log(`Deleting object "${key}" at path:`, path);
+            // Implementare: șterge obiectul folosind path-ul
+            if (onDeleteElement && path.length > 0) {
+              onDeleteElement(path);
+            }
+          }
           break;
         case 'add-element':
-          alert(`Adaugă element nou în obiectul: "${key || 'root'}"`);
-          // TODO: Implementare: adaugă element în obiect și apelează onDataChange
+          showTypeSelectionMenu(contextMenu.x, contextMenu.y);
+          // Nu închide contextMenu aici pentru a păstra referința
           break;
       }
     }
-    
+
     // Acțiuni pentru ARRAY-URI
     else if (type === 'array') {
       switch (action) {
         case 'rename':
-          alert(`Redenumește array-ul: "${key}"`);
-          // TODO: Implementare: modifică cheia array-ului și apelează onDataChange
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const newArrayName = prompt(`Enter the new name for array "${key}":`);
+          if (newArrayName !== null && newArrayName.trim() !== '') {
+            console.log(`Renaming array from "${key}" to "${newArrayName}"`);
+            // TODO: Implementare: modifică cheia array-ului și apelează onDataChange
+          }
           break;
         case 'delete':
-          alert(`Șterge array-ul: "${key}"`);
-          // TODO: Implementare: șterge array-ul și apelează onDataChange
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const confirmArrayDelete = confirm(`Are you sure you want to delete the array "${key}"?`);
+          if (confirmArrayDelete) {
+            console.log(`Deleting array "${key}" at path:`, path);
+            // Implementare: șterge array-ul folosind path-ul
+            if (onDeleteElement && path.length > 0) {
+              onDeleteElement(path);
+            }
+          }
           break;
         case 'add-element':
-          alert(`Adaugă element nou în array-ul: "${key || 'root'}"`);
-          // TODO: Implementare: adaugă element în array și apelează onDataChange
+          showTypeSelectionMenu(contextMenu.x, contextMenu.y);
+          // Nu închide contextMenu aici pentru a păstra referința
           break;
       }
     }
@@ -91,20 +324,47 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
     else {
       switch (action) {
         case 'change-field-name':
-          alert(`Schimbă numele câmpului: "${key}"`);
-          // TODO: Implementare: modifică cheia câmpului și apelează onDataChange
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const newFieldName = prompt(`Enter the new name for field "${key}":`);
+          if (newFieldName !== null && newFieldName.trim() !== '') {
+            console.log(`Renaming field from "${key}" to "${newFieldName}"`);
+            // TODO: Implementare: modifică cheia câmpului și apelează onDataChange
+          }
           break;
         case 'change-value':
-          alert(`Schimbă valoarea: "${key}" = ${JSON.stringify(value)} (${type})`);
-          // TODO: Implementare: modifică valoarea câmpului și apelează onDataChange
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const currentValue = JSON.stringify(value);
+          const newValue = prompt(`Enter the new value for "${key}":`, currentValue);
+          if (newValue !== null) {
+            try {
+              // Încearcă să parseze ca JSON pentru a păstra tipul
+              JSON.parse(newValue);
+              console.log(`Changing value of "${key}" from ${currentValue} to ${newValue}`);
+              // TODO: Implementare: modifică valoarea câmpului și apelează onDataChange
+            } catch (error) {
+              // Tratează ca string dacă nu e JSON valid
+              console.log(`Changing value of "${key}" from ${currentValue} to "${newValue}" (as string)`);
+              // TODO: Implementare: modifică valoarea câmpului și apelează onDataChange
+            }
+          }
           break;
         case 'add-field':
-          alert(`Adaugă câmp nou lângă: "${key}"`);
-          // TODO: Implementare: adaugă câmp nou și apelează onDataChange
+          showTypeSelectionMenu(contextMenu.x, contextMenu.y);
+          // Nu închide contextMenu aici pentru a păstra referința
           break;
         case 'delete':
-          alert(`Șterge câmpul: "${key}"`);
-          // TODO: Implementare: șterge câmpul și apelează onDataChange
+          // Închide meniul mai întâi
+          setContextMenu(null);
+          const confirmFieldDelete = confirm(`Are you sure you want to delete the field "${key}"?`);
+          if (confirmFieldDelete) {
+            console.log(`Deleting field "${key}" at path:`, path);
+            // Implementare: șterge câmpul folosind path-ul
+            if (onDeleteElement && path.length > 0) {
+              onDeleteElement(path);
+            }
+          }
           break;
       }
     }
@@ -148,6 +408,9 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
           <div 
             className="flex items-center py-1 hover:bg-gray-700 rounded cursor-pointer transition-colors"
             onClick={() => setIsExpanded(!isExpanded)}
+            onMouseEnter={() => onMouseEnter?.(key || 'unknown', getValueType(value), value)}
+            onMouseLeave={() => onMouseLeave?.()}
+            onMouseMove={onMouseMove}
           >
             <span className="mr-2 text-lg">{getIcon(value, isExpanded)}</span>
             <span className="font-semibold text-blue-300">
@@ -172,6 +435,12 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
                     level={level + 1} 
                     isEditing={isEditing} // Pasăm proprietatea mai departe
                     onDataChange={onDataChange} // Pasăm și callback-ul mai departe
+                    onPathBasedChange={onPathBasedChange} // Pasăm noul callback
+                    onMouseEnter={onMouseEnter} // Pasăm și handler-ele pentru tooltip
+                    onMouseLeave={onMouseLeave}
+                    onMouseMove={onMouseMove}
+                    path={[...path, index]} // Calculăm path-ul pentru elementul din array
+                    onDeleteElement={onDeleteElement} // Pasăm callback-ul pentru delete
                   />
                 ))
               ) : (
@@ -183,6 +452,12 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
                     level={level + 1} 
                     isEditing={isEditing} // Pasăm proprietatea mai departe
                     onDataChange={onDataChange} // Pasăm și callback-ul mai departe
+                    onPathBasedChange={onPathBasedChange} // Pasăm noul callback
+                    onMouseEnter={onMouseEnter} // Pasăm și handler-ele pentru tooltip
+                    onMouseLeave={onMouseLeave}
+                    onMouseMove={onMouseMove}
+                    path={[...path, childKey]} // Calculăm path-ul pentru proprietatea obiectului
+                    onDeleteElement={onDeleteElement} // Pasăm callback-ul pentru delete
                   />
                 ))
               )}
@@ -197,6 +472,9 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
           style={{ marginLeft: `${indent}px` }} 
           className="flex items-center py-1 hover:bg-gray-700 rounded px-2"
           onContextMenu={(e) => handleContextMenu(e, value, key)}
+          onMouseEnter={() => onMouseEnter?.(key || 'unknown', getValueType(value), value)}
+          onMouseLeave={() => onMouseLeave?.()}
+          onMouseMove={onMouseMove}
         >
           <span className="font-medium text-gray-300">
             {key && `${key}: `}
@@ -298,7 +576,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
                   className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
                   onClick={() => handleMenuOption('add-field')}
                 >
-                  ➕ Add Field
+                  ➕ Add Element
                 </div>
                 <div 
                   className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
@@ -310,6 +588,84 @@ const JSONTree: React.FC<JSONTreeProps> = ({ data, name, level = 0, isEditing = 
             )}
           </div>
         </>
+      )}
+      
+      {/* Meniul de selecție tip pentru adăugare elemente */}
+      {typeSelectionMenu && (
+        <div
+          style={{ 
+            position: 'fixed',
+            top: typeSelectionMenu.y, 
+            left: typeSelectionMenu.x,
+            zIndex: 25
+          }}
+          className="bg-gray-100 text-black rounded shadow-lg py-1 min-w-[120px] border-2 border-blue-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 text-xs font-semibold text-gray-600 border-b border-gray-300">
+            Select Type
+          </div>
+          <div 
+            className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+            onClick={() => {
+              setTypeSelectionMenu(null);
+              setContextMenu(null);
+              addElement('object');
+            }}
+          >
+            📦 Object
+          </div>
+          <div 
+            className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+            onClick={() => {
+              setTypeSelectionMenu(null);
+              setContextMenu(null);
+              addElement('array');
+            }}
+          >
+            📋 Array
+          </div>
+          <div 
+            className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+            onClick={() => {
+              setTypeSelectionMenu(null);
+              setContextMenu(null);
+              addElement('string');
+            }}
+          >
+            📝 String
+          </div>
+          <div 
+            className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+            onClick={() => {
+              setTypeSelectionMenu(null);
+              setContextMenu(null);
+              addElement('number');
+            }}
+          >
+            🔢 Number
+          </div>
+          <div 
+            className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+            onClick={() => {
+              setTypeSelectionMenu(null);
+              setContextMenu(null);
+              addElement('boolean');
+            }}
+          >
+            ✅ Boolean
+          </div>
+          <div 
+            className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+            onClick={() => {
+              setTypeSelectionMenu(null);
+              setContextMenu(null);
+              addElement('null');
+            }}
+          >
+            ❌ Null
+          </div>
+        </div>
       )}
     </div>
   );

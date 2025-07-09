@@ -22,6 +22,14 @@ function App() {
     // Stare nouă pentru a controla modul de editare
     const [isEditing, setIsEditing] = useState(false);
 
+    // Stare pentru hover și tooltip
+    const [isHovered, setIsHovered] = useState(false);
+    const [hoveredElementInfo, setHoveredElementInfo] = useState<{
+        name: string;
+        type: string;
+        value: any;
+    } | null>(null);
+
     /**
      * Callback pentru a primi modificările din JSONTree și a actualiza editedContent.
      * @param newData - Noile date JSON modificate de către JSONTree
@@ -29,6 +37,36 @@ function App() {
     const handleDataChange = (newData: any) => {
         setEditedContent(newData);
         console.log("Datele au fost modificate în JSONTree:", newData);
+    };
+
+    /**
+     * Funcție pentru a modifica un element specific din structura JSON bazată pe path
+     * @param path - Calea către elementul care trebuie modificat
+     * @param newValue - Noua valoare pentru element
+     */
+    const handlePathBasedChange = (path: (string | number)[], newValue: any) => {
+        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        const newData = JSON.parse(JSON.stringify(editedContent));
+        
+        if (path.length === 0) {
+            // Dacă path-ul este gol, înlocuiesc întreaga structură (root)
+            setEditedContent(newValue);
+            return;
+        }
+        
+        // Navighează către părintele elementului de modificat
+        let current = newData;
+        for (let i = 0; i < path.length - 1; i++) {
+            current = current[path[i]];
+        }
+        
+        // Modifică valoarea la path-ul specificat
+        const lastKey = path[path.length - 1];
+        current[lastKey] = newValue;
+        
+        // Actualizez starea cu noile date
+        setEditedContent(newData);
+        console.log(`Element modified at path: [${path.join(', ')}]`, newValue);
     };
 
     /**
@@ -52,11 +90,53 @@ function App() {
 
     /**
      * Handler pentru salvarea modificărilor.
+     * Descarcă fișierul JSON modificat pe calculatorul utilizatorului.
      */
     const handleSaveChanges = () => {
-      // TODO
-      alert("Funcționalitatea de salvare va fi implementată în viitor!");
-      console.log("Se salvează modificările...");
+        if (!editedContent || !selectedFile) {
+            alert("Nu există date de salvat!");
+            return;
+        }
+
+        try {
+            // Convertesc obiectul JSON modificat înapoi în string formatat
+            const jsonString = JSON.stringify(editedContent, null, 2); // null, 2 = formatare frumoasă cu 2 spații
+            
+            // Creez un Blob (obiect binary) cu conținutul JSON
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            
+            // Creez un URL temporar pentru blob
+            const url = URL.createObjectURL(blob);
+            
+            // Creez un element <a> invizibil pentru a declanșa descărcarea
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            
+            // Generez numele fișierului (adaug "_modified" înainte de extensie)
+            const originalName = selectedFile.name;
+            const nameWithoutExtension = originalName.replace('.json', '');
+            const newFileName = `${nameWithoutExtension}_modified.json`;
+            
+            downloadLink.download = newFileName;
+            
+            // Adaug elementul în DOM, fac click pe el, apoi îl șterg
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            // Curăț URL-ul temporar pentru a elibera memoria
+            URL.revokeObjectURL(url);
+            
+            // Actualizez datele originale cu cele modificate (pentru a preveni reset-ul)
+            setFileContent(editedContent);
+            
+            console.log(`Fișierul "${newFileName}" a fost descărcat cu succes!`);
+            alert(`Fișierul "${newFileName}" a fost salvat cu succes!\nVerifică folderul de descărcări.`);
+            
+        } catch (error) {
+            console.error("Eroare la salvarea fișierului:", error);
+            alert("A apărut o eroare la salvarea fișierului!");
+        }
     }
 
     const handleDeletionFile = () => {
@@ -162,6 +242,75 @@ function App() {
                 alert('Te rog selectează doar fișiere JSON!');
             }
         }
+    };
+
+
+/*
+    ** Implementare hover și tooltip
+
+*/
+    // Funcție care se execută când mouse-ul INTRĂ peste un element
+    const handleMouseEnter = (elementName: string, elementType: string, elementValue: any) => {
+        setIsHovered(true); // Marchează că mouse-ul este peste ceva
+        setHoveredElementInfo({ // Salvează informațiile despre element
+            name: elementName,
+            type: elementType,
+            value: elementValue
+        });
+    };
+
+    // Funcție care se execută când mouse-ul PĂRĂSETE un element
+    const handleMouseLeave = () => {
+        setIsHovered(false); // Marchează că mouse-ul nu mai este peste nimic
+        setHoveredElementInfo(null); // Șterge informațiile
+    };
+
+    // Stare pentru poziția tooltip-ului (unde să apară pe ecran)
+    const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0});
+
+    // Funcție care se execută când mouse-ul SE MIȘCĂ peste un element
+    const handleMouseMove = (event: React.MouseEvent) => {
+        setTooltipPosition({
+            x: event.clientX + 10, // Poziția X a mouse-ului + 10 pixeli (să nu fie exact pe cursor)
+            y: event.clientY - 30  // Poziția Y a mouse-ului - 30 pixeli (să fie deasupra cursor-ului)
+        });
+    };
+
+    /**
+     * Funcție pentru ștergerea unui element din structura JSON bazată pe path
+     * @param pathToDelete - Calea către elementul care trebuie șters
+     */
+    const handleDeleteElement = (pathToDelete: (string | number)[]) => {
+        if (pathToDelete.length === 0) {
+            alert("Cannot delete root element!");
+            return;
+        }
+
+        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        const newData = JSON.parse(JSON.stringify(editedContent));
+        
+        // Calculez calea către părintele elementului de șters
+        const parentPath = pathToDelete.slice(0, -1); // Toate elementele mai puțin ultimul
+        const keyToDelete = pathToDelete[pathToDelete.length - 1]; // Ultimul element = cheia de șters
+        
+        // Navighează către părintele elementului de șters
+        let parent = newData;
+        for (const key of parentPath) {
+            parent = parent[key];
+        }
+        
+        // Șterge elementul în funcție de tipul părintelui
+        if (Array.isArray(parent)) {
+            // Pentru array-uri, folosesc splice pentru a șterge elementul la index
+            parent.splice(keyToDelete as number, 1);
+        } else {
+            // Pentru obiecte, folosesc delete pentru a șterge proprietatea
+            delete parent[keyToDelete];
+        }
+        
+        // Actualizez starea cu noile date
+        setEditedContent(newData);
+        console.log(`Element deleted at path: [${pathToDelete.join(', ')}]`);
     };
 
   // --- RENDERED COMPONENT (JSX) ---
@@ -272,7 +421,7 @@ function App() {
                         className='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
                         onClick={handleSaveChanges}
                       >
-                        💾 Save Changes
+                        📥 Download changes
                       </button>
                       {/* Butonul pentru ieșirea din modul de editare */}
                       <button
@@ -312,12 +461,64 @@ function App() {
                   </div>
                 )}
                 {/* Componenta JSONTree primește datele parsate și starea de editare */}
-                <JSONTree data={editedContent} isEditing={isEditing} onDataChange={handleDataChange} />
+                <JSONTree 
+                  data={editedContent} 
+                  isEditing={isEditing} 
+                  onDataChange={handleDataChange}
+                  onPathBasedChange={handlePathBasedChange}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseMove={handleMouseMove}
+                  path={[]} // Calea inițială pentru root este un array gol
+                  onDeleteElement={handleDeleteElement} // Pasez funcția de delete
+                />
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Tooltip-ul care se afișează când mouse-ul este peste un element */}
+      {isHovered && hoveredElementInfo && (
+        <div
+          style={{
+            position: 'fixed',        // Se poziționează față de fereastra browser-ului
+            left: tooltipPosition.x,  // Poziția pe orizontală
+            top: tooltipPosition.y,   // Poziția pe verticală
+            zIndex: 1000,            // Să fie deasupra tuturor elementelor
+            pointerEvents: 'none'     // Mouse-ul să treacă prin el (să nu interfereze)
+          }}
+          className="bg-black bg-opacity-80 text-white px-2 py-1 rounded text-xs border border-gray-600 shadow-lg"
+        >
+          <div className="font-semibold">{hoveredElementInfo.name}</div>
+          <div className="text-gray-300">Type: {hoveredElementInfo.type}</div>
+          {hoveredElementInfo.type === 'string' && (
+            <div className="text-gray-400 max-w-xs truncate">
+              Value: "{hoveredElementInfo.value}"
+            </div>
+          )}
+          {hoveredElementInfo.type === 'number' && (
+            <div className="text-blue-300">
+              Value: {hoveredElementInfo.value}
+            </div>
+          )}
+          {hoveredElementInfo.type === 'boolean' && (
+            <div className="text-yellow-300">
+              Value: {hoveredElementInfo.value ? 'true' : 'false'}
+            </div>
+          )}
+          {hoveredElementInfo.type === 'object' && (
+            <div className="text-purple-300">
+              Object with {Object.keys(hoveredElementInfo.value || {}).length} properties
+            </div>
+          )}
+          {hoveredElementInfo.type === 'array' && (
+            <div className="text-orange-300">
+              Array with {(hoveredElementInfo.value || []).length} elements
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
