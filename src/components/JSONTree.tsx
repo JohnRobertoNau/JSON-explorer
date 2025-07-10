@@ -119,7 +119,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   // Handler pentru a închide meniul
   const handleCloseContextMenu = (event?: React.MouseEvent) => {
     if (event) {
-      event.stopPropagation();
+      event.stopPropagation(); 
     }
     setContextMenu(null);
     setTypeSelectionMenu(null);
@@ -556,70 +556,88 @@ const JSONTree: React.FC<JSONTreeProps> = ({
             {/* Opțiuni pentru OBIECTE */}
             {contextMenu.type === 'object' ? (
               <>
-                <div 
-                  className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
-                  onClick={() => handleMenuOption('rename')}
-                >
-                  📝 Rename
-                </div>
+                {/* Afișăm opțiunea de redenumire doar dacă nu suntem la root */}
+                {path.length > 0 && (
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
+                    onClick={() => handleMenuOption('rename')}
+                  >
+                    📝 Rename
+                  </div>
+                )}
                 <div 
                   className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
                   onClick={() => handleMenuOption('add-element')}
                 >
                   ➕ Add Element
                 </div>
-                <div 
-                  className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
-                  onClick={() => handleMenuOption('delete')}
-                >
-                  🗑️ Delete
-                </div>
+                {/* Afișăm opțiunea de ștergere doar dacă nu suntem la root */}
+                {path.length > 0 && (
+                  <div 
+                    className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
+                    onClick={() => handleMenuOption('delete')}
+                  >
+                    🗑️ Delete
+                  </div>
+                )}
               </>
             ) 
             /* Opțiuni pentru ARRAY-URI */
             : contextMenu.type === 'array' ? (
               <>
-                <div 
-                  className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
-                  onClick={() => handleMenuOption('rename')}
-                >
-                  📝 Rename
-                </div>
+                {/* Afișăm opțiunea de redenumire doar dacă nu suntem la root */}
+                {path.length > 0 && (
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
+                    onClick={() => handleMenuOption('rename')}
+                  >
+                    📝 Rename
+                  </div>
+                )}
                 <div 
                   className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
                   onClick={() => handleMenuOption('add-element')}
                 >
                   ➕ Add Element
                 </div>
-                <div 
-                  className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
-                  onClick={() => handleMenuOption('delete')}
-                >
-                  🗑️ Delete
-                </div>
+                {/* Afișăm opțiunea de ștergere doar dacă nu suntem la root */}
+                {path.length > 0 && (
+                  <div 
+                    className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
+                    onClick={() => handleMenuOption('delete')}
+                  >
+                    🗑️ Delete
+                  </div>
+                )}
               </>
             ) 
             /* Opțiuni pentru VALORI PRIMITIVE */
             : (
               <>
-                <div 
-                  className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
-                  onClick={() => handleMenuOption('change-field-name')}
-                >
-                  Change Field Name
-                </div>
+                {/* Afișăm opțiunea de schimbare nume doar dacă nu suntem la root */}
+                {path.length > 0 && (
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
+                    onClick={() => handleMenuOption('change-field-name')}
+                  >
+                    Change Field Name
+                  </div>
+                )}
                 <div 
                   className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
                   onClick={() => handleMenuOption('change-value')}
                 >
                   Change Value
                 </div>
-                <div 
-                  className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
-                  onClick={() => handleMenuOption('delete')}
-                >
-                  🗑️ Delete
-                </div>
+                {/* Afișăm opțiunea de ștergere doar dacă nu suntem la root */}
+                {path.length > 0 && (
+                  <div 
+                    className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
+                    onClick={() => handleMenuOption('delete')}
+                  >
+                    🗑️ Delete
+                  </div>
+                )}
               </>
             )}
           </div>
