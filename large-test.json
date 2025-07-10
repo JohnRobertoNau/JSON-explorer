@@ -1,0 +1,185 @@
+{
+  "user_profiles": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "preferences": {
+        "theme": "dark",
+        "language": "en",
+        "notifications": {
+          "email": true,
+          "push": false,
+          "sms": true
+        }
+      },
+      "data": {
+        "last_login": "2024-01-15",
+        "session_count": 142,
+        "favorite_colors": ["blue", "green", "purple"],
+        "settings": {
+          "auto_save": true,
+          "backup_frequency": "daily",
+          "storage_limit": 500
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "preferences": {
+        "theme": "light",
+        "language": "es",
+        "notifications": {
+          "email": false,
+          "push": true,
+          "sms": false
+        }
+      },
+      "data": {
+        "last_login": "2024-01-20",
+        "session_count": 89,
+        "favorite_colors": ["red", "orange", "yellow"],
+        "settings": {
+          "auto_save": false,
+          "backup_frequency": "weekly",
+          "storage_limit": 1000
+        }
+      }
+    },
+    {
+      "id": 3,
+      "name": "Charlie Brown",
+      "email": "charlie@example.com",
+      "preferences": {
+        "theme": "auto",
+        "language": "fr",
+        "notifications": {
+          "email": true,
+          "push": true,
+          "sms": true
+        }
+      },
+      "data": {
+        "last_login": "2024-01-18",
+        "session_count": 203,
+        "favorite_colors": ["black", "white", "gray"],
+        "settings": {
+          "auto_save": true,
+          "backup_frequency": "monthly",
+          "storage_limit": 250
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "Diana Prince",
+      "email": "diana@example.com",
+      "preferences": {
+        "theme": "dark",
+        "language": "de",
+        "notifications": {
+          "email": false,
+          "push": false,
+          "sms": true
+        }
+      },
+      "data": {
+        "last_login": "2024-01-22",
+        "session_count": 67,
+        "favorite_colors": ["gold", "silver", "bronze"],
+        "settings": {
+          "auto_save": false,
+          "backup_frequency": "daily",
+          "storage_limit": 750
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "Edward Norton",
+      "email": "edward@example.com",
+      "preferences": {
+        "theme": "light",
+        "language": "ja",
+        "notifications": {
+          "email": true,
+          "push": false,
+          "sms": false
+        }
+      },
+      "data": {
+        "last_login": "2024-01-19",
+        "session_count": 124,
+        "favorite_colors": ["teal", "coral", "lavender"],
+        "settings": {
+          "auto_save": true,
+          "backup_frequency": "weekly",
+          "storage_limit": 300
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "Fiona Green",
+      "email": "fiona@example.com",
+      "preferences": {
+        "theme": "auto",
+        "language": "pt",
+        "notifications": {
+          "email": false,
+          "push": true,
+          "sms": true
+        }
+      },
+      "data": {
+        "last_login": "2024-01-21",
+        "session_count": 178,
+        "favorite_colors": ["lime", "cyan", "magenta"],
+        "settings": {
+          "auto_save": false,
+          "backup_frequency": "monthly",
+          "storage_limit": 600
+        }
+      }
+    }
+  ],
+  "system_settings": {
+    "version": "2.1.4",
+    "maintenance_mode": false,
+    "debug_level": "info",
+    "cache_settings": {
+      "ttl": 3600,
+      "max_size": "100MB",
+      "compression": true
+    },
+    "security": {
+      "encryption": "AES-256",
+      "session_timeout": 1800,
+      "max_login_attempts": 3,
+      "password_policy": {
+        "min_length": 8,
+        "require_uppercase": true,
+        "require_numbers": true,
+        "require_symbols": false
+      }
+    }
+  },
+  "analytics": {
+    "total_users": 6,
+    "active_sessions": 4,
+    "daily_metrics": {
+      "page_views": 1247,
+      "unique_visitors": 89,
+      "bounce_rate": 0.23,
+      "avg_session_duration": 342
+    },
+    "performance": {
+      "response_time_ms": 145,
+      "cpu_usage": 0.67,
+      "memory_usage": 0.52,
+      "disk_usage": 0.34
+    }
+  }
+}

@@ -16,6 +16,14 @@ interface JSONTreeProps {
   onDeleteElement?: (path: (string | number)[]) => void; // Callback pentru ștergere
   onRenameElement?: (path: (string | number)[], newKey: string) => void; // Callback pentru redenumire
   onChangeValue?: (path: (string | number)[], newValue: any) => void; // Callback pentru modificarea valorilor
+  // Props pentru drag & drop reordering:
+  onDragStart?: (path: (string | number)[], key: string | number, value: any, parentType: 'object' | 'array', originalIndex: number) => void;
+  onDragEnd?: () => void;
+  onReorderElements?: (sourcePath: (string | number)[], targetIndex: number) => void;
+  draggedElement?: { path: (string | number)[]; key: string | number; value: any; parentType: 'object' | 'array'; originalIndex: number } | null;
+  isDragging?: boolean;
+  onAutoScroll?: (event: React.DragEvent, container: HTMLElement) => void;
+  onStopAutoScroll?: () => void;
 }
 
 const JSONTree: React.FC<JSONTreeProps> = ({ 
@@ -31,11 +39,22 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   path = [], // Calea implicită este un array gol (root)
   onDeleteElement,
   onRenameElement,
-  onChangeValue
+  onChangeValue,
+  // Drag & drop props:
+  onDragStart,
+  onDragEnd,
+  onReorderElements,
+  draggedElement,
+  isDragging,
+  onAutoScroll,
+  onStopAutoScroll
 }) => {
   const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand primele 2 niveluri
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: string; value: any; key?: string } | null>(null);
   const [typeSelectionMenu, setTypeSelectionMenu] = useState<{ x: number; y: number; targetType: 'object' | 'array' | 'primitive'; targetKey?: string } | null>(null);
+  
+  // Stare locală pentru drag over index - fiecare instanță JSONTree are propria stare
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
 
   const renameFunction = (value: any, key?: string) => {
@@ -465,43 +484,213 @@ const JSONTree: React.FC<JSONTreeProps> = ({
           {isExpanded && (
             <div className="ml-4 border-l-2 border-gray-600 pl-2">
               {Array.isArray(value) ? (
-                value.map((item, index) => (
-                  <JSONTree 
-                    key={index} 
-                    data={item} 
-                    name={`[${index}]`} 
-                    level={level + 1} 
-                    isEditing={isEditing} // Pasăm proprietatea mai departe
-                    onDataChange={onDataChange} // Pasăm și callback-ul mai departe
-                    onPathBasedChange={onPathBasedChange} // Pasăm noul callback
-                    onMouseEnter={onMouseEnter} // Pasăm și handler-ele pentru tooltip
-                    onMouseLeave={onMouseLeave}
-                    onMouseMove={onMouseMove}
-                    path={[...path, index]} // Calculăm path-ul pentru elementul din array
-                    onDeleteElement={onDeleteElement} // Pasăm callback-ul pentru delete
-                    onRenameElement={onRenameElement} // Pasăm callback-ul pentru rename
-                    onChangeValue={onChangeValue} // Pasăm callback-ul pentru change value
-                  />
-                ))
+                value.map((item, index) => {
+                  const isDraggedElement = draggedElement && 
+                    draggedElement.path.length === path.length + 1 && 
+                    draggedElement.path[draggedElement.path.length - 1] === index &&
+                    draggedElement.path.slice(0, -1).every((p, i) => p === path[i]);
+                  
+                  // Verificăm că drag over se întâmplă la nivelul corect (același părinte)
+                  const isAtCorrectLevel = draggedElement && 
+                    draggedElement.path.length === path.length + 1 &&
+                    draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
+                    draggedElement.parentType === 'array';
+                  
+                  const isDragOver = dragOverIndex === index && isAtCorrectLevel;
+                  
+                  return (
+                    <div
+                      key={index}
+                      draggable={isEditing}
+                      className={`
+                        ${isDraggedElement ? 'opacity-50' : ''}
+                        ${isDragOver ? 'border-t-2 border-blue-400' : ''}
+                        ${isEditing ? 'cursor-move' : ''}
+                      `}
+                      onDragStart={(e) => {
+                        if (!isEditing || !onDragStart) return;
+                        e.stopPropagation();
+                        onDragStart([...path, index], index, item, 'array', index);
+                      }}
+                      onDragOver={(e) => {
+                        if (!isEditing) return;
+                        e.preventDefault();
+                        
+                        // Setează drag over doar dacă este la nivelul corect
+                        if (draggedElement && 
+                            draggedElement.path.length === path.length + 1 &&
+                            draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
+                            draggedElement.parentType === 'array') {
+                          setDragOverIndex(index);
+                          e.stopPropagation();
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (!isEditing) return;
+                        e.stopPropagation();
+                        
+                        // Reset drag over doar dacă este la nivelul corect
+                        if (draggedElement && 
+                            draggedElement.path.length === path.length + 1 &&
+                            draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
+                            draggedElement.parentType === 'array') {
+                          setDragOverIndex(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        if (!isEditing || !onReorderElements || !draggedElement) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Verificăm că drag-ul este în același parent
+                        const parentPath = path;
+                        const draggedParentPath = draggedElement.path.slice(0, -1);
+                        const isSameParent = parentPath.length === draggedParentPath.length &&
+                          parentPath.every((p, i) => p === draggedParentPath[i]);
+                        
+                        if (isSameParent && draggedElement.parentType === 'array') {
+                          onReorderElements(draggedElement.path, index);
+                        }
+                        
+                        setDragOverIndex(null);
+                      }}
+                      onDragEnd={(e) => {
+                        if (!isEditing) return;
+                        e.stopPropagation();
+                        if (onDragEnd) {
+                          onDragEnd();
+                        }
+                      }}
+                    >
+                      <JSONTree 
+                        data={item} 
+                        name={`[${index}]`} 
+                        level={level + 1} 
+                        isEditing={isEditing}
+                        onDataChange={onDataChange}
+                        onPathBasedChange={onPathBasedChange}
+                        onMouseEnter={onMouseEnter}
+                        onMouseLeave={onMouseLeave}
+                        onMouseMove={onMouseMove}
+                        path={[...path, index]}
+                        onDeleteElement={onDeleteElement}
+                        onRenameElement={onRenameElement}
+                        onChangeValue={onChangeValue}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        onReorderElements={onReorderElements}
+                        draggedElement={draggedElement}
+                        isDragging={isDragging}
+                        onAutoScroll={onAutoScroll}
+                        onStopAutoScroll={onStopAutoScroll}
+                      />
+                    </div>
+                  );
+                })
               ) : (
-                Object.entries(value).map(([childKey, childValue]) => (
-                  <JSONTree 
-                    key={childKey} 
-                    data={childValue} 
-                    name={childKey} 
-                    level={level + 1} 
-                    isEditing={isEditing} // Pasăm proprietatea mai departe
-                    onDataChange={onDataChange} // Pasăm și callback-ul mai departe
-                    onPathBasedChange={onPathBasedChange} // Pasăm noul callback
-                    onMouseEnter={onMouseEnter} // Pasăm și handler-ele pentru tooltip
-                    onMouseLeave={onMouseLeave}
-                    onMouseMove={onMouseMove}
-                    path={[...path, childKey]} // Calculăm path-ul pentru proprietatea obiectului
-                    onDeleteElement={onDeleteElement} // Pasăm callback-ul pentru delete
-                    onRenameElement={onRenameElement} // Pasăm callback-ul pentru rename
-                    onChangeValue={onChangeValue} // Pasăm callback-ul pentru change value
-                  />
-                ))
+                Object.entries(value).map(([childKey, childValue], index) => {
+                  const isDraggedElement = draggedElement && 
+                    draggedElement.path.length === path.length + 1 && 
+                    draggedElement.path[draggedElement.path.length - 1] === childKey &&
+                    draggedElement.path.slice(0, -1).every((p, i) => p === path[i]);
+                  
+                  // Verificăm că drag over se întâmplă la nivelul corect (același părinte)
+                  const isAtCorrectLevel = draggedElement && 
+                    draggedElement.path.length === path.length + 1 &&
+                    draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
+                    draggedElement.parentType === 'object';
+                  
+                  const isDragOver = dragOverIndex === index && isAtCorrectLevel;
+                  
+                  return (
+                    <div
+                      key={childKey}
+                      draggable={isEditing}
+                      className={`
+                        ${isDraggedElement ? 'opacity-50' : ''}
+                        ${isDragOver ? 'border-t-2 border-blue-400' : ''}
+                        ${isEditing ? 'cursor-move' : ''}
+                      `}
+                      onDragStart={(e) => {
+                        if (!isEditing || !onDragStart) return;
+                        e.stopPropagation();
+                        onDragStart([...path, childKey], childKey, childValue, 'object', index);
+                      }}
+                      onDragOver={(e) => {
+                        if (!isEditing) return;
+                        e.preventDefault();
+                        
+                        // Setează drag over doar dacă este la nivelul corect
+                        if (draggedElement && 
+                            draggedElement.path.length === path.length + 1 &&
+                            draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
+                            draggedElement.parentType === 'object') {
+                          setDragOverIndex(index);
+                          e.stopPropagation();
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (!isEditing) return;
+                        e.stopPropagation();
+                        
+                        // Reset drag over doar dacă este la nivelul corect
+                        if (draggedElement && 
+                            draggedElement.path.length === path.length + 1 &&
+                            draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
+                            draggedElement.parentType === 'object') {
+                          setDragOverIndex(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        if (!isEditing || !onReorderElements || !draggedElement) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Verificăm că drag-ul este în același parent
+                        const parentPath = path;
+                        const draggedParentPath = draggedElement.path.slice(0, -1);
+                        const isSameParent = parentPath.length === draggedParentPath.length &&
+                          parentPath.every((p, i) => p === draggedParentPath[i]);
+                        
+                        if (isSameParent && draggedElement.parentType === 'object') {
+                          onReorderElements(draggedElement.path, index);
+                        }
+                        
+                        setDragOverIndex(null);
+                      }}
+                      onDragEnd={(e) => {
+                        if (!isEditing) return;
+                        e.stopPropagation();
+                        if (onDragEnd) {
+                          onDragEnd();
+                        }
+                      }}
+                    >
+                      <JSONTree 
+                        data={childValue} 
+                        name={childKey} 
+                        level={level + 1} 
+                        isEditing={isEditing}
+                        onDataChange={onDataChange}
+                        onPathBasedChange={onPathBasedChange}
+                        onMouseEnter={onMouseEnter}
+                        onMouseLeave={onMouseLeave}
+                        onMouseMove={onMouseMove}
+                        path={[...path, childKey]}
+                        onDeleteElement={onDeleteElement}
+                        onRenameElement={onRenameElement}
+                        onChangeValue={onChangeValue}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        onReorderElements={onReorderElements}
+                        draggedElement={draggedElement}
+                        isDragging={isDragging}
+                        onAutoScroll={onAutoScroll}
+                        onStopAutoScroll={onStopAutoScroll}
+                      />
+                    </div>
+                  );
+                })
               )}
             </div>
           )}

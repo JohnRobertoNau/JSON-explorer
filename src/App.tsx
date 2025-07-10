@@ -30,6 +30,20 @@ function App() {
         value: any;
     } | null>(null);
 
+
+    // STARTI PENTRU REORDONAREA FISIERELOR IN IERARHIE CU CLICK
+    const [draggedElement, setDraggedElement] = useState<{
+        path: (string | number)[];
+        key: string | number;
+        value: any;
+        parentType: 'object' | 'array';
+        originalIndex: number;
+    } | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Stare pentru auto-scroll în timpul drag-ului
+    const [autoScrollInterval, setAutoScrollInterval] = useState<number | null>(null);
+
     /**
      * Callback pentru a primi modificările din JSONTree și a actualiza editedContent.
      * @param newData - Noile date JSON modificate de către JSONTree
@@ -155,6 +169,9 @@ function App() {
     // --- REFS ---
     // Referință către elementul de input (de tip 'file') pentru a-l putea accesa programatic
     const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    // Referință către containerul de scroll pentru auto-scroll în timpul drag-ului
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // --- LOGIC FUNCTIONS ---
 
@@ -435,6 +452,160 @@ function App() {
         }
     };
 
+  // --- DRAG & DROP ELEMENT REORDERING HANDLERS ---
+
+    /**
+     * Handler pentru începutul drag-ului unui element JSON
+     * @param path - Calea către elementul care este tras
+     * @param key - Cheia/indexul elementului în părintele său
+     * @param value - Valoarea elementului
+     * @param parentType - Tipul părintelui ('object' sau 'array')
+     * @param originalIndex - Indexul original al elementului în listă
+     */
+    const handleDragStart = (
+        path: (string | number)[], 
+        key: string | number, 
+        value: any, 
+        parentType: 'object' | 'array',
+        originalIndex: number
+    ) => {
+        if (!isEditing) return; // Activez drag-ul doar în modul de editare
+        
+        setDraggedElement({ 
+            path, 
+            key, 
+            value, 
+            parentType,
+            originalIndex 
+        });
+        setIsDragging(true);
+        console.log(`Started dragging element "${key}" at path: [${path.join(', ')}]`);
+    };
+
+    /**
+     * Handler pentru sfârșitul drag-ului
+     */
+    const handleDragEnd = () => {
+        setDraggedElement(null);
+        setIsDragging(false);
+        stopAutoScroll(); // Oprește auto-scroll-ul când drag-ul s-a terminat
+        console.log("Drag operation ended");
+    };
+
+    /**
+     * Handler pentru reordonarea efectivă a elementelor
+     * @param sourcePath - Calea către elementul sursă
+     * @param targetIndex - Indexul țintă unde să fie mutat elementul
+     */
+    const handleReorderElements = (sourcePath: (string | number)[], targetIndex: number) => {
+        if (!draggedElement) {
+            console.warn("No dragged element found for reordering");
+            return;
+        }
+
+        // Verifică dacă mutarea este în același nivel (nu permitem mutarea între nivele diferite)
+        const sourceParentPath = sourcePath.slice(0, -1);
+        
+        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        const newData = JSON.parse(JSON.stringify(editedContent));
+        
+        // Navighează către părintele elementului
+        let parent = newData;
+        for (const key of sourceParentPath) {
+            parent = parent[key];
+        }
+
+        if (Array.isArray(parent)) {
+            // Pentru array-uri: reordonare prin splice
+            const fromIndex = draggedElement.originalIndex;
+            if (fromIndex !== targetIndex && targetIndex >= 0 && targetIndex < parent.length) {
+                const [movedElement] = parent.splice(fromIndex, 1);
+                parent.splice(targetIndex, 0, movedElement);
+                
+                // Actualizez starea cu noile date
+                setEditedContent(newData);
+                console.log(`Array element moved from index ${fromIndex} to ${targetIndex}`);
+            }
+        } else if (typeof parent === 'object' && parent !== null) {
+            // Pentru obiecte: reordonare prin reconstrucția obiectului
+            const entries = Object.entries(parent);
+            const fromIndex = entries.findIndex(([key]) => key === draggedElement.key);
+            
+            if (fromIndex !== -1 && targetIndex >= 0 && targetIndex < entries.length && fromIndex !== targetIndex) {
+                const [movedEntry] = entries.splice(fromIndex, 1);
+                entries.splice(targetIndex, 0, movedEntry);
+                
+                // Reconstruiesc obiectul cu noua ordine
+                const reorderedObject = Object.fromEntries(entries);
+                
+                // Înlocuiesc obiectul părinte cu versiunea reordonată
+                if (sourceParentPath.length === 0) {
+                    // Dacă este root object
+                    setEditedContent(reorderedObject);
+                } else {
+                    // Dacă este un obiect nested
+                    let current = newData;
+                    for (let i = 0; i < sourceParentPath.length - 1; i++) {
+                        current = current[sourceParentPath[i]];
+                    }
+                    current[sourceParentPath[sourceParentPath.length - 1]] = reorderedObject;
+                    setEditedContent(newData);
+                }
+                
+                console.log(`Object property "${draggedElement.key}" moved from position ${fromIndex} to ${targetIndex}`);
+            }
+        }
+
+        // Reset drag state
+        handleDragEnd();
+    };
+
+    // Funcție pentru auto-scroll în timpul drag-ului
+    const handleAutoScroll = (event: React.DragEvent, container: HTMLElement) => {
+        const rect = container.getBoundingClientRect();
+        const scrollThreshold = 220; // Pixeli de la marginea containerului (mărit pentru mai multă comoditate)
+        const scrollSpeed = 8; // Viteza de scroll (mărită puțin)
+
+        const mouseY = event.clientY;
+        const containerTop = rect.top;
+        const containerBottom = rect.bottom;
+
+        // Calculează dacă trebuie să facem scroll
+        let scrollDirection = 0;
+        
+        if (mouseY - containerTop < scrollThreshold) {
+            // Scroll în sus
+            scrollDirection = -scrollSpeed;
+        } else if (containerBottom - mouseY < scrollThreshold) {
+            // Scroll în jos
+            scrollDirection = scrollSpeed;
+        }
+
+        if (scrollDirection !== 0) {
+            // Începe auto-scroll dacă nu este deja activ
+            if (!autoScrollInterval) {
+                const interval = setInterval(() => {
+                    container.scrollTop += scrollDirection;
+                }, 16); // ~60fps
+                setAutoScrollInterval(interval);
+            }
+        } else {
+            // Oprește auto-scroll
+            if (autoScrollInterval) {
+                clearInterval(autoScrollInterval);
+                setAutoScrollInterval(null);
+            }
+        }
+    };
+
+    // Funcție pentru a opri auto-scroll
+    const stopAutoScroll = () => {
+        if (autoScrollInterval) {
+            clearInterval(autoScrollInterval);
+            setAutoScrollInterval(null);
+        }
+    };
+
   // --- RENDERED COMPONENT (JSX) ---
   return (
     // Containerul principal al aplicației, stilizat cu Flexbox pentru aliniere
@@ -580,7 +751,20 @@ function App() {
               </div>
 
               {/* Container cu scroll pentru conținutul JSON, care se extinde */}
-              <div className="bg-gray-800 p-4 rounded-lg overflow-auto flex-grow">
+              <div 
+                ref={scrollContainerRef}
+                className="bg-gray-800 p-4 rounded-lg overflow-auto flex-grow"
+                onDragOver={(e) => {
+                  if (isDragging && scrollContainerRef.current) {
+                    handleAutoScroll(e, scrollContainerRef.current);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (isDragging) {
+                    stopAutoScroll();
+                  }
+                }}
+              >
                 {/* Afișăm un indicator visual când suntem în modul de editare */}
                 {isEditing && (
                   <div className="mb-3 p-2 bg-yellow-600 bg-opacity-20 rounded border border-yellow-500">
@@ -602,6 +786,13 @@ function App() {
                   onDeleteElement={handleDeleteElement} // Pasez funcția de delete
                   onRenameElement={handleRenameElement} // Pasez funcția de redenumire
                   onChangeValue={handleChangeValue} // Pasez funcția de modificare valori
+                  onDragStart={handleDragStart} // Pasez handler-ul pentru începutul drag-ului
+                  onDragEnd={handleDragEnd} // Pasez handler-ul pentru sfârșitul drag-ului
+                  onReorderElements={handleReorderElements} // Pasez funcția de reordonare
+                  draggedElement={draggedElement} // Pasez elementul care este tras
+                  isDragging={isDragging} // Pasez starea de dragging
+                  onAutoScroll={handleAutoScroll} // Pasez funcția de auto-scroll
+                  onStopAutoScroll={stopAutoScroll} // Pasez funcția pentru oprirea auto-scroll-ului de scroll
                 />
               </div>
             </div>
