@@ -14,6 +14,8 @@ interface JSONTreeProps {
   // Props pentru path-based operations:
   path?: (string | number)[]; // Calea către acest element în structura JSON
   onDeleteElement?: (path: (string | number)[]) => void; // Callback pentru ștergere
+  onRenameElement?: (path: (string | number)[], newKey: string) => void; // Callback pentru redenumire
+  onChangeValue?: (path: (string | number)[], newValue: any) => void; // Callback pentru modificarea valorilor
 }
 
 const JSONTree: React.FC<JSONTreeProps> = ({ 
@@ -27,11 +29,45 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   onMouseLeave,
   onMouseMove,
   path = [], // Calea implicită este un array gol (root)
-  onDeleteElement
+  onDeleteElement,
+  onRenameElement,
+  onChangeValue
 }) => {
   const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand primele 2 niveluri
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: string; value: any; key?: string } | null>(null);
   const [typeSelectionMenu, setTypeSelectionMenu] = useState<{ x: number; y: number; targetType: 'object' | 'array' | 'primitive'; targetKey?: string } | null>(null);
+
+
+  const renameFunction = (value: any, key?: string) => {
+    if (!isEditing) return; // Activăm funcția doar în modul de editare
+    if (!key) return; // Nu putem redenumi elementul fără o cheie
+
+    const type = getValueType(value);
+    let promptMessage = '';
+    
+    // Determinăm mesajul în funcție de tip
+    if (type === 'object') {
+      promptMessage = `Enter the new name for object "${key}":`;
+    } else if (type === 'array') {
+      promptMessage = `Enter the new name for array "${key}":`;
+    } else {
+      promptMessage = `Enter the new name for field "${key}":`;
+    }
+
+    const newName = prompt(promptMessage, key);
+    
+    if (newName !== null && newName.trim() !== '' && newName !== key) {
+      console.log(`Renaming "${key}" to "${newName}"`);
+      
+      // Implementare completă cu onRenameElement
+      if (onRenameElement && path.length > 0) {
+        onRenameElement(path, newName);
+      } else {
+        console.warn('onRenameElement callback is not available or path is empty');
+        console.log(`Path: [${path.join(', ')}], Old key: "${key}", New key: "${newName}"`);
+      }
+    }
+  };
 
   // Handler pentru click-dreapta
   const handleContextMenu = (event: React.MouseEvent, value: any, key?: string) => {
@@ -265,11 +301,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
         case 'rename':
           // Închide meniul mai întâi
           setContextMenu(null);
-          const newObjectName = prompt(`Enter the new name for object "${key}":`);
-          if (newObjectName !== null && newObjectName.trim() !== '') {
-            console.log(`Renaming object from "${key}" to "${newObjectName}"`);
-            // TODO: Implementare: modifică cheia obiectului și apelează onDataChange
-          }
+          renameFunction(value, key);
           break;
         case 'delete':
           // Închide meniul mai întâi
@@ -296,11 +328,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
         case 'rename':
           // Închide meniul mai întâi
           setContextMenu(null);
-          const newArrayName = prompt(`Enter the new name for array "${key}":`);
-          if (newArrayName !== null && newArrayName.trim() !== '') {
-            console.log(`Renaming array from "${key}" to "${newArrayName}"`);
-            // TODO: Implementare: modifică cheia array-ului și apelează onDataChange
-          }
+          renameFunction(value, key);
           break;
         case 'delete':
           // Închide meniul mai întâi
@@ -326,27 +354,37 @@ const JSONTree: React.FC<JSONTreeProps> = ({
         case 'change-field-name':
           // Închide meniul mai întâi
           setContextMenu(null);
-          const newFieldName = prompt(`Enter the new name for field "${key}":`);
-          if (newFieldName !== null && newFieldName.trim() !== '') {
-            console.log(`Renaming field from "${key}" to "${newFieldName}"`);
-            // TODO: Implementare: modifică cheia câmpului și apelează onDataChange
-          }
+          renameFunction(value, key);
           break;
         case 'change-value':
           // Închide meniul mai întâi
           setContextMenu(null);
           const currentValue = JSON.stringify(value);
           const newValue = prompt(`Enter the new value for "${key}":`, currentValue);
-          if (newValue !== null) {
+          if (newValue !== null && newValue.trim() !== '') {
             try {
               // Încearcă să parseze ca JSON pentru a păstra tipul
-              JSON.parse(newValue);
+              const parsedValue = JSON.parse(newValue);
               console.log(`Changing value of "${key}" from ${currentValue} to ${newValue}`);
-              // TODO: Implementare: modifică valoarea câmpului și apelează onDataChange
+              
+              // Implementare completă cu onChangeValue
+              if (onChangeValue && path.length > 0) {
+                onChangeValue(path, parsedValue);
+              } else {
+                console.warn('onChangeValue callback is not available or path is empty');
+                console.log(`Path: [${path.join(', ')}], Old value: ${currentValue}, New value: ${newValue}`);
+              }
             } catch (error) {
               // Tratează ca string dacă nu e JSON valid
               console.log(`Changing value of "${key}" from ${currentValue} to "${newValue}" (as string)`);
-              // TODO: Implementare: modifică valoarea câmpului și apelează onDataChange
+              
+              // Implementare completă cu onChangeValue pentru string
+              if (onChangeValue && path.length > 0) {
+                onChangeValue(path, newValue);
+              } else {
+                console.warn('onChangeValue callback is not available or path is empty');
+                console.log(`Path: [${path.join(', ')}], Old value: ${currentValue}, New value: "${newValue}"`);
+              }
             }
           }
           break;
@@ -441,6 +479,8 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                     onMouseMove={onMouseMove}
                     path={[...path, index]} // Calculăm path-ul pentru elementul din array
                     onDeleteElement={onDeleteElement} // Pasăm callback-ul pentru delete
+                    onRenameElement={onRenameElement} // Pasăm callback-ul pentru rename
+                    onChangeValue={onChangeValue} // Pasăm callback-ul pentru change value
                   />
                 ))
               ) : (
@@ -458,6 +498,8 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                     onMouseMove={onMouseMove}
                     path={[...path, childKey]} // Calculăm path-ul pentru proprietatea obiectului
                     onDeleteElement={onDeleteElement} // Pasăm callback-ul pentru delete
+                    onRenameElement={onRenameElement} // Pasăm callback-ul pentru rename
+                    onChangeValue={onChangeValue} // Pasăm callback-ul pentru change value
                   />
                 ))
               )}
@@ -571,12 +613,6 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                   onClick={() => handleMenuOption('change-value')}
                 >
                   Change Value
-                </div>
-                <div 
-                  className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
-                  onClick={() => handleMenuOption('add-field')}
-                >
-                  ➕ Add Element
                 </div>
                 <div 
                   className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"

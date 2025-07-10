@@ -313,6 +313,128 @@ function App() {
         console.log(`Element deleted at path: [${pathToDelete.join(', ')}]`);
     };
 
+    /**
+     * Funcție pentru redenumirea unui element din structura JSON bazată pe path
+     * @param pathToRename - Calea către elementul care trebuie redenumit
+     * @param newKey - Noul nume (cheie) pentru element
+     */
+    const handleRenameElement = (pathToRename: (string | number)[], newKey: string) => {
+        if (pathToRename.length === 0) {
+            alert("Cannot rename root element!");
+            return;
+        }
+
+        // Validare: verifică dacă noul nume este valid
+        if (!newKey || newKey.trim() === '') {
+            alert("New name cannot be empty!");
+            return;
+        }
+
+        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        const newData = JSON.parse(JSON.stringify(editedContent));
+        
+        // Calculez calea către părintele elementului de redenumit
+        const parentPath = pathToRename.slice(0, -1); // Toate elementele mai puțin ultimul
+        const oldKey = pathToRename[pathToRename.length - 1]; // Ultimul element = cheia veche
+        
+        // Navighează către părintele elementului de redenumit
+        let parent = newData;
+        for (const key of parentPath) {
+            parent = parent[key];
+        }
+        
+        // Redenumirea se poate face doar pentru obiecte (nu pentru array-uri)
+        if (Array.isArray(parent)) {
+            alert("Cannot rename array elements! Array elements are accessed by index.");
+            return;
+        }
+        
+        // Verifică dacă noul nume există deja
+        if (parent.hasOwnProperty(newKey)) {
+            const overwrite = confirm(`Key "${newKey}" already exists. Do you want to overwrite it?`);
+            if (!overwrite) return;
+        }
+        
+        // Salvează valoarea veche
+        const value = parent[oldKey];
+        
+        // Reconstruiește obiectul păstrând ordinea originală
+        const newParent: any = {};
+        for (const key in parent) {
+            if (key === oldKey) {
+                // Când ajungem la cheia veche, o înlocuim cu cea nouă
+                newParent[newKey] = value;
+            } else {
+                // Pentru toate celelalte chei, le copiem așa cum sunt
+                newParent[key] = parent[key];
+            }
+        }
+        
+        // Înlocuiește obiectul părinte cu versiunea reordonată
+        Object.keys(parent).forEach(key => delete parent[key]);
+        Object.assign(parent, newParent);
+        
+        // Actualizez starea cu noile date
+        setEditedContent(newData);
+        console.log(`Element renamed from "${oldKey}" to "${newKey}" at path: [${parentPath.join(', ')}]`);
+    };
+
+    /**
+     * Funcție pentru modificarea valorii unui element din structura JSON bazată pe path
+     * @param pathToChange - Calea către elementul a cărui valoare trebuie modificată
+     * @param newValue - Noua valoare pentru element
+     */
+    const handleChangeValue = (pathToChange: (string | number)[], newValue: any) => {
+        if (pathToChange.length === 0) {
+            alert("Cannot change root element value directly!");
+            return;
+        }
+
+        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        const newData = JSON.parse(JSON.stringify(editedContent));
+        
+        // Calculez calea către părintele elementului de modificat
+        const parentPath = pathToChange.slice(0, -1); // Toate elementele mai puțin ultimul
+        const keyToChange = pathToChange[pathToChange.length - 1]; // Ultimul element = cheia de modificat
+        
+        // Navighează către părintele elementului de modificat
+        let parent = newData;
+        for (const key of parentPath) {
+            parent = parent[key];
+        }
+        
+        // Modifică valoarea
+        parent[keyToChange] = newValue;
+        
+        // Actualizez starea cu noile date
+        setEditedContent(newData);
+        console.log(`Value changed at path: [${pathToChange.join(', ')}], New value:`, newValue);
+    };
+
+    /**
+     * Funcție pentru crearea unui fișier JSON nou
+     */
+    const handleCreateNewFile = () => {
+        const newFileName = prompt(`Enter the name for the new file (without .json extension):`);
+        if (newFileName && newFileName.trim() !== '') {
+            // Creez un obiect JSON de bază gol
+            const emptyJSON = {};
+            
+            // Simulez un fișier cu numele dat
+            const simulatedFile = new File(['{}'], `${newFileName.trim()}.json`, {
+                type: 'application/json'
+            });
+            
+            // Setez starea aplicației cu noul fișier
+            setSelectedFile(simulatedFile);
+            setFileContent(emptyJSON);
+            setEditedContent(emptyJSON);
+            setIsEditing(true); // Intru direct în modul de editare
+            
+            console.log(`New file created: ${newFileName}.json`);
+        }
+    };
+
   // --- RENDERED COMPONENT (JSX) ---
   return (
     // Containerul principal al aplicației, stilizat cu Flexbox pentru aliniere
@@ -387,6 +509,13 @@ function App() {
                   }
                 </p>
               </div>
+
+              <button 
+                onClick={handleCreateNewFile}
+                className='text-2xl mb-4 text-center mt-6 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md transition-all duration-200 cursor-pointer w-full'
+              >
+                ✨ Click here to create a new file
+              </button>
             </>
           )}
 
@@ -471,6 +600,8 @@ function App() {
                   onMouseMove={handleMouseMove}
                   path={[]} // Calea inițială pentru root este un array gol
                   onDeleteElement={handleDeleteElement} // Pasez funcția de delete
+                  onRenameElement={handleRenameElement} // Pasez funcția de redenumire
+                  onChangeValue={handleChangeValue} // Pasez funcția de modificare valori
                 />
               </div>
             </div>
