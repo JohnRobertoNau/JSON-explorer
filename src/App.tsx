@@ -22,6 +22,16 @@ function App() {
     // Stare nouă pentru a controla modul de editare
     const [isEditing, setIsEditing] = useState(false);
 
+    // Stare pentru a detecta dacă fișierul este nou creat
+    const [isNewFile, setIsNewFile] = useState(false);
+
+    // Stări pentru modul de creare fișier nou cu editor text
+    const [isCreatingNewFile, setIsCreatingNewFile] = useState(false);
+    const [jsonTextInput, setJsonTextInput] = useState('{\n  \n}');
+    const [previewData, setPreviewData] = useState<any>(null);
+    const [hasJsonError, setHasJsonError] = useState(false);
+    const [jsonErrorMessage, setJsonErrorMessage] = useState('');
+
     // Stare pentru hover și tooltip
     const [isHovered, setIsHovered] = useState(false);
     const [hoveredElementInfo, setHoveredElementInfo] = useState<{
@@ -97,9 +107,16 @@ function App() {
      */
     const handleExitEditMode = () => {
       setIsEditing(false);
-      // Resetăm editedContent la valorile originale pentru a anula modificările nesalvate
-      setEditedContent(fileContent);
-      console.log("S-a ieșit din modul de editare și modificările nesalvate au fost anulate.");
+      // Pentru fișierele nou create, păstrăm conținutul modificat ca fiind originalul
+      if (isNewFile) {
+        setFileContent(editedContent);
+        setIsNewFile(false); // Marchează că fișierul nu mai este "nou"
+        console.log("S-a ieșit din modul de editare și conținutul fișierului nou a fost păstrat.");
+      } else {
+        // Pentru fișierele existente, resetăm la valorile originale pentru a anula modificările nesalvate
+        setEditedContent(fileContent);
+        console.log("S-a ieșit din modul de editare și modificările nesalvate au fost anulate.");
+      }
     }
 
     /**
@@ -158,6 +175,7 @@ function App() {
       setFileContent(null);
       setEditedContent(null); // Resetăm și conținutul de editare
       setIsEditing(false);
+      setIsNewFile(false); // Resetăm flag-ul pentru fișiere noi
 
       if (fileInputRef.current) {
         fileInputRef.current.value = ""; 
@@ -192,6 +210,7 @@ function App() {
                     const content = JSON.parse(result); // Parsează string-ul ca JSON
                     setFileContent(content); // Actualizează starea cu obiectul JSON original
                     setEditedContent(content); // Inițializează și versiunea de editare
+                    setIsNewFile(false); // Resetează flag-ul pentru fișiere noi
                     console.log('Fișier încărcat cu succes:', file.name);
                 }
             } catch (error) {
@@ -429,9 +448,9 @@ function App() {
     };
 
     /**
-     * Funcție pentru crearea unui fișier JSON nou
+     * Funcție pentru crearea unui fișier JSON nou (metoda veche - prompt simplu)
      */
-    const handleCreateNewFile = () => {
+    const handleCreateNewFileSimple = () => {
         const newFileName = prompt(`Enter the name for the new file (without .json extension):`);
         if (newFileName && newFileName.trim() !== '') {
             // Creez un obiect JSON de bază gol
@@ -447,11 +466,109 @@ function App() {
             setFileContent(emptyJSON);
             setEditedContent(emptyJSON);
             setIsEditing(true); // Intru direct în modul de editare
+            setIsNewFile(true); // Marchează că fișierul este nou creat
             
             console.log(`New file created: ${newFileName}.json`);
         }
     };
 
+    /**
+     * Funcție pentru crearea unui fișier JSON nou (metoda principală - cu editor text)
+     */
+    const handleCreateNewFile = () => {
+        handleCreateNewFileWithEditor();
+    };
+
+    /**
+     * Funcție pentru crearea unui fișier JSON nou cu editor text
+     */
+    const handleCreateNewFileWithEditor = () => {
+        setIsCreatingNewFile(true);
+        setJsonTextInput('{\n  \n}');
+        setPreviewData(null);
+        setHasJsonError(false);
+        setJsonErrorMessage('');
+        console.log("Modul de creare fișier nou cu editor a fost activat");
+    };
+
+    /**
+     * Funcție pentru anularea creării fișierului nou
+     */
+    const handleCancelNewFileCreation = () => {
+        setIsCreatingNewFile(false);
+        setJsonTextInput('{\n  \n}');
+        setPreviewData(null);
+        setHasJsonError(false);
+        setJsonErrorMessage('');
+        console.log("Crearea fișierului nou a fost anulată");
+    };
+
+    /**
+     * Funcție pentru compilarea și previzualizarea JSON-ului din text input
+     */
+    const handleCompileJson = () => {
+        try {
+            const parsedJson = JSON.parse(jsonTextInput);
+            setPreviewData(parsedJson);
+            setHasJsonError(false);
+            setJsonErrorMessage('');
+            console.log("JSON compilat cu succes:", parsedJson);
+        } catch (error) {
+            setHasJsonError(true);
+            setJsonErrorMessage(error instanceof Error ? error.message : 'JSON invalid');
+            setPreviewData(null);
+            console.error("Eroare la compilarea JSON:", error);
+        }
+    };
+
+    /**
+     * Funcție pentru confirmarea și salvarea fișierului creat
+     */
+    const handleConfirmNewFile = () => {
+        if (!previewData) {
+            alert("Compilează mai întâi JSON-ul pentru a-l putea salva!");
+            return;
+        }
+
+        const newFileName = prompt(`Enter the name for the new file (without .json extension):`);
+        if (newFileName && newFileName.trim() !== '') {
+            // Simulez un fișier cu numele dat
+            const simulatedFile = new File([jsonTextInput], `${newFileName.trim()}.json`, {
+                type: 'application/json'
+            });
+            
+            // Setez starea aplicației cu noul fișier
+            setSelectedFile(simulatedFile);
+            setFileContent(previewData);
+            setEditedContent(previewData);
+            setIsEditing(true);
+            setIsNewFile(true);
+            
+            // Ieși din modul de creare
+            setIsCreatingNewFile(false);
+            setJsonTextInput('{\n  \n}');
+            setPreviewData(null);
+            setHasJsonError(false);
+            setJsonErrorMessage('');
+            
+            console.log(`New file created: ${newFileName}.json`);
+        }
+    };
+
+    /**
+     * Funcție pentru actualizarea text input-ului JSON
+     */
+    const handleJsonTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setJsonTextInput(event.target.value);
+        // Resetează preview-ul când textul se schimbă
+        if (previewData) {
+            setPreviewData(null);
+        }
+        if (hasJsonError) {
+            setHasJsonError(false);
+            setJsonErrorMessage('');
+        }
+    };
   // --- DRAG & DROP ELEMENT REORDERING HANDLERS ---
 
     /**
@@ -636,8 +753,8 @@ function App() {
              onDragLeave={handleDragLeave}
              onDrop={handleDrop}
         >
-          {/* --- ZONA DE SELECTARE FIȘIER (Afișată doar dacă nu avem conținut) --- */}
-          {!fileContent && (
+          {/* --- ZONA DE SELECTARE FIȘIER (Afișată doar dacă nu avem conținut și nu suntem în modul de creare) --- */}
+          {!fileContent && !isCreatingNewFile && (
             <>
               {/* Titlul dinamic care se schimbă în funcție de starea de drag */}
               <h2 className="text-2xl font-semibold mb-4 text-green-400 text-center">
@@ -688,6 +805,88 @@ function App() {
                 ✨ Click here to create a new file
               </button>
             </>
+          )}
+
+          {/* --- ZONA DE CREARE FIȘIER NOU CU EDITOR TEXT --- */}
+          {!fileContent && isCreatingNewFile && (
+            <div className="flex flex-col h-full">
+              {/* Header cu titlu și butoane */}
+              <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-600">
+                <h2 className="text-2xl font-semibold text-green-400">
+                  ✨ Create New JSON File
+                </h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCompileJson}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200"
+                  >
+                    🔄 Compile & Preview
+                  </button>
+                  <button
+                    onClick={handleConfirmNewFile}
+                    disabled={!previewData}
+                    className={`px-4 py-2 font-semibold rounded-lg shadow-md transition-all duration-200 ${
+                      previewData 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                    }`}
+                  >
+                    ✅ Confirm & Save
+                  </button>
+                  <button
+                    onClick={handleCancelNewFileCreation}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200"
+                  >
+                    ❌ Cancel
+                  </button>
+                </div>
+              </div>
+
+              {/* Container pentru split view */}
+              <div className="flex flex-1 gap-4 min-h-0">
+                {/* Panoul stâng - Editor text */}
+                <div className="flex-1 flex flex-col">
+                  <h3 className="text-lg font-semibold text-blue-300 mb-2">
+                    📝 JSON Editor
+                  </h3>
+                  <textarea
+                    value={jsonTextInput}
+                    onChange={handleJsonTextChange}
+                    className="flex-1 bg-gray-900 text-green-400 font-mono text-sm p-4 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
+                    placeholder="Enter your JSON here..."
+                    spellCheck={false}
+                  />
+                  {hasJsonError && (
+                    <div className="mt-2 p-2 bg-red-900 bg-opacity-50 border border-red-500 rounded text-red-400 text-sm">
+                      <strong>❌ JSON Error:</strong> {jsonErrorMessage}
+                    </div>
+                  )}
+                </div>
+
+                {/* Panoul drept - Preview */}
+                <div className="flex-1 flex flex-col">
+                  <h3 className="text-lg font-semibold text-purple-300 mb-2">
+                    👁️ Live Preview
+                  </h3>
+                  <div className="flex-1 bg-gray-900 p-4 rounded-lg border border-gray-600 overflow-auto">
+                    {previewData ? (
+                      <JSONTree 
+                        data={previewData} 
+                        isEditing={false}
+                        path={[]}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">🔄</div>
+                          <p>Click "Compile & Preview" to see your JSON</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* --- ZONA DE AFIȘARE CONȚINUT (Afișată doar dacă avem fișier selectat) --- */}

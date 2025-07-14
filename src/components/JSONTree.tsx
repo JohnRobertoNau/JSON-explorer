@@ -417,7 +417,8 @@ const JSONTree: React.FC<JSONTreeProps> = ({
           const confirmFieldDelete = confirm(`Are you sure you want to delete the field "${key}"?`);
           if (confirmFieldDelete) {
             console.log(`Deleting field "${key}" at path:`, path);
-            // Implementare: șterge câmpul folosind path-ul
+
+            // sterge campul folosind path-ul
             if (onDeleteElement && path.length > 0) {
               onDeleteElement(path);
             }
