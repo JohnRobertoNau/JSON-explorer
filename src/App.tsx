@@ -27,7 +27,7 @@ function App() {
 
     // Stări pentru modul de creare fișier nou cu editor text
     const [isCreatingNewFile, setIsCreatingNewFile] = useState(false);
-    const [jsonTextInput, setJsonTextInput] = useState('{\n  \n}');
+    const [jsonTextInput, setJsonTextInput] = useState('{\n  "name": "example",\n  "value": 42,\n  "active": true\n}');
     const [previewData, setPreviewData] = useState<any>(null);
     const [hasJsonError, setHasJsonError] = useState(false);
     const [jsonErrorMessage, setJsonErrorMessage] = useState('');
@@ -53,6 +53,128 @@ function App() {
 
     // Stare pentru auto-scroll în timpul drag-ului
     const [autoScrollInterval, setAutoScrollInterval] = useState<number | null>(null);
+
+    // STĂRI PENTRU ISTORICUL VERSIUNILOR
+    const [fileHistory, setFileHistory] = useState<Array<{
+      id: string;
+      name: string;
+      originalName: string;
+      content: any;
+      timestamp: Date;
+      size: number;
+      version: number;
+    }>>([]);
+    const [showHistory, setShowHistory] = useState(false);
+
+    // FUNCȚII PENTRU GESTIONAREA ISTORICULUI VERSIUNILOR
+
+    /**
+     * Funcție pentru încărcarea istoricului din localStorage
+     */
+    const loadFileHistory = () => {
+      try {
+        const saved = localStorage.getItem('jsonExplorerHistory');
+        if (saved) {
+          const history = JSON.parse(saved);
+          // Convertim timestamp-urile înapoi în Date objects
+          const processedHistory = history.map((item: any) => ({
+            ...item,
+            timestamp: new Date(item.timestamp)
+          }));
+          setFileHistory(processedHistory);
+        }
+      } catch (error) {
+        console.error('Error loading file history:', error);
+      }
+    };
+
+    /**
+     * Funcție pentru salvarea istoricului în localStorage
+     */
+    const saveFileHistory = (history: any[]) => {
+      try {
+        localStorage.setItem('jsonExplorerHistory', JSON.stringify(history));
+      } catch (error) {
+        console.error('Error saving file history:', error);
+      }
+    };
+
+    /**
+     * Funcție pentru adăugarea unei noi versiuni în istoric
+     */
+    const addToHistory = (fileName: string, content: any) => {
+      const newEntry = {
+        id: Date.now().toString(),
+        name: fileName,
+        originalName: fileName.replace(/_modified(_\d+)?\.json$/, '.json'),
+        content: content,
+        timestamp: new Date(),
+        size: JSON.stringify(content).length,
+        version: 1
+      };
+
+      setFileHistory(prev => {
+        // Găsește alte versiuni ale aceluiași fișier
+        const sameFileVersions = prev.filter(item => 
+          item.originalName === newEntry.originalName
+        );
+        
+        // Calculează numărul versiunii
+        newEntry.version = sameFileVersions.length + 1;
+        
+        // Adaugă noua versiune la început
+        const updated = [newEntry, ...prev];
+        
+        // Păstrează doar ultimele 10 versiuni
+        const trimmed = updated.slice(0, 10);
+        
+        // Salvează în localStorage
+        saveFileHistory(trimmed);
+        
+        return trimmed;
+      });
+    };
+
+    /**
+     * Funcție pentru încărcarea unei versiuni din istoric
+     */
+    const loadFromHistory = (historyItem: any) => {
+      const simulatedFile = new File([JSON.stringify(historyItem.content)], historyItem.name, {
+        type: 'application/json'
+      });
+      
+      setSelectedFile(simulatedFile);
+      setFileContent(historyItem.content);
+      setEditedContent(historyItem.content);
+      setIsEditing(true);
+      setIsNewFile(false);
+      setShowHistory(false);
+      
+      console.log(`Loaded version ${historyItem.version} of ${historyItem.originalName}`);
+    };
+
+    /**
+     * Funcție pentru ștergerea unei versiuni din istoric
+     */
+    const removeFromHistory = (itemId: string) => {
+      setFileHistory(prev => {
+        const updated = prev.filter(item => item.id !== itemId);
+        saveFileHistory(updated);
+        return updated;
+      });
+    };
+
+    /**
+     * Funcție pentru ștergerea întregului istoric
+     */
+    const clearHistory = () => {
+      const confirmClear = confirm("Are you sure you want to clear all file history?");
+      if (confirmClear) {
+        setFileHistory([]);
+        localStorage.removeItem('jsonExplorerHistory');
+        console.log("File history cleared");
+      }
+    };
 
     /**
      * Callback pentru a primi modificările din JSONTree și a actualiza editedContent.
@@ -161,6 +283,9 @@ function App() {
             // Actualizez datele originale cu cele modificate (pentru a preveni reset-ul)
             setFileContent(editedContent);
             
+            // Adaugă versiunea modificată în istoric
+            addToHistory(newFileName, editedContent);
+            
             console.log(`Fișierul "${newFileName}" a fost descărcat cu succes!`);
             alert(`Fișierul "${newFileName}" a fost salvat cu succes!\nVerifică folderul de descărcări.`);
             
@@ -211,6 +336,10 @@ function App() {
                     setFileContent(content); // Actualizează starea cu obiectul JSON original
                     setEditedContent(content); // Inițializează și versiunea de editare
                     setIsNewFile(false); // Resetează flag-ul pentru fișiere noi
+                    
+                    // Adaugă fișierul în istoric
+                    addToHistory(file.name, content);
+                    
                     console.log('Fișier încărcat cu succes:', file.name);
                 }
             } catch (error) {
@@ -448,31 +577,6 @@ function App() {
     };
 
     /**
-     * Funcție pentru crearea unui fișier JSON nou (metoda veche - prompt simplu)
-     */
-    const handleCreateNewFileSimple = () => {
-        const newFileName = prompt(`Enter the name for the new file (without .json extension):`);
-        if (newFileName && newFileName.trim() !== '') {
-            // Creez un obiect JSON de bază gol
-            const emptyJSON = {};
-            
-            // Simulez un fișier cu numele dat
-            const simulatedFile = new File(['{}'], `${newFileName.trim()}.json`, {
-                type: 'application/json'
-            });
-            
-            // Setez starea aplicației cu noul fișier
-            setSelectedFile(simulatedFile);
-            setFileContent(emptyJSON);
-            setEditedContent(emptyJSON);
-            setIsEditing(true); // Intru direct în modul de editare
-            setIsNewFile(true); // Marchează că fișierul este nou creat
-            
-            console.log(`New file created: ${newFileName}.json`);
-        }
-    };
-
-    /**
      * Funcție pentru crearea unui fișier JSON nou (metoda principală - cu editor text)
      */
     const handleCreateNewFile = () => {
@@ -484,7 +588,7 @@ function App() {
      */
     const handleCreateNewFileWithEditor = () => {
         setIsCreatingNewFile(true);
-        setJsonTextInput('{\n  \n}');
+        setJsonTextInput('{\n  "name": "example",\n  "value": 42,\n  "active": true\n}');
         setPreviewData(null);
         setHasJsonError(false);
         setJsonErrorMessage('');
@@ -496,7 +600,7 @@ function App() {
      */
     const handleCancelNewFileCreation = () => {
         setIsCreatingNewFile(false);
-        setJsonTextInput('{\n  \n}');
+        setJsonTextInput('{\n  "name": "example",\n  "value": 42,\n  "active": true\n}');
         setPreviewData(null);
         setHasJsonError(false);
         setJsonErrorMessage('');
@@ -504,7 +608,7 @@ function App() {
     };
 
     /**
-     * Funcție pentru compilarea și previzualizarea JSON-ului din text input
+     * Funcție pentru compilarea explicită și afișarea erorilor (doar la apăsarea butonului)
      */
     const handleCompileJson = () => {
         try {
@@ -514,6 +618,7 @@ function App() {
             setJsonErrorMessage('');
             console.log("JSON compilat cu succes:", parsedJson);
         } catch (error) {
+            // Afișează eroarea DOAR când butonul este apăsat
             setHasJsonError(true);
             setJsonErrorMessage(error instanceof Error ? error.message : 'JSON invalid');
             setPreviewData(null);
@@ -544,6 +649,9 @@ function App() {
             setIsEditing(true);
             setIsNewFile(true);
             
+            // Adaugă noul fișier în istoric
+            addToHistory(simulatedFile.name, previewData);
+            
             // Ieși din modul de creare
             setIsCreatingNewFile(false);
             setJsonTextInput('{\n  \n}');
@@ -556,19 +664,185 @@ function App() {
     };
 
     /**
-     * Funcție pentru actualizarea text input-ului JSON
+     * Funcție pentru actualizarea text input-ului JSON cu compilare live
      */
     const handleJsonTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setJsonTextInput(event.target.value);
-        // Resetează preview-ul când textul se schimbă
-        if (previewData) {
-            setPreviewData(null);
-        }
+        const newText = event.target.value;
+        setJsonTextInput(newText);
+        
+        // Resetează erorile doar dacă erau afișate
         if (hasJsonError) {
             setHasJsonError(false);
             setJsonErrorMessage('');
         }
+        
+        // Compilare live - încearcă să parseze JSON-ul în timp real
+        try {
+            const parsedJson = JSON.parse(newText);
+            setPreviewData(parsedJson); // Actualizează preview-ul dacă JSON-ul este valid
+        } catch (error) {
+            // Dacă JSON-ul nu este valid, doar șterge preview-ul, nu afișa eroarea
+            setPreviewData(null);
+        }
     };
+
+    /**
+     * Funcție pentru auto-completarea parantezelor și ghilimelelor
+     */
+    const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const textarea = event.target as HTMLTextAreaElement;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        let value = event.target.value;
+        
+        // Verifică dacă utilizatorul a tastat o paranteză deschisă
+        if (start === end && start > 0) {
+            const lastChar = value[start - 1];
+            const pairs: { [key: string]: string } = {
+                '{': '}',
+                '[': ']',
+                '"': '"'
+            };
+            
+            if (pairs[lastChar]) {
+                // Adaugă paranteză închisă
+                const newValue = 
+                    value.substring(0, start) + 
+                    pairs[lastChar] + 
+                    value.substring(start);
+                
+                setJsonTextInput(newValue);
+                
+                // Poziționează cursorul între paranteze
+                setTimeout(() => {
+                    textarea.selectionStart = start;
+                    textarea.selectionEnd = start;
+                }, 0);
+                
+                // Declanșează compilarea live
+                setTimeout(() => {
+                    try {
+                        const parsedJson = JSON.parse(newValue);
+                        setPreviewData(parsedJson);
+                    } catch (error) {
+                        setPreviewData(null);
+                    }
+                }, 0);
+                
+                return; // Nu continua cu procesarea normală
+            }
+        }
+        
+        // Procesare normală
+        handleJsonTextChange(event);
+    };
+
+    /**
+     * Funcție pentru gestionarea tastelor Tab și Enter în textarea pentru indentare automată
+     */
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const textarea = event.target as HTMLTextAreaElement;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const value = textarea.value;
+        
+        if (event.key === 'Tab') {
+            event.preventDefault(); // Previne comportamentul default (schimbarea focus-ului)
+            
+            if (event.shiftKey) {
+                // Shift+Tab: Deindentează
+                const lines = value.substring(0, start).split('\n');
+                const currentLine = lines[lines.length - 1];
+                
+                if (currentLine.startsWith('  ')) {
+                    // Șterge 2 spații de la începutul liniei
+                    const lineStart = start - currentLine.length;
+                    const newValue = 
+                        value.substring(0, lineStart) + 
+                        currentLine.substring(2) + 
+                        value.substring(start);
+                    
+                    setJsonTextInput(newValue);
+                    
+                    // Poziționează cursorul
+                    setTimeout(() => {
+                        textarea.selectionStart = start - 2;
+                        textarea.selectionEnd = end - 2;
+                    }, 0);
+                }
+            } else {
+                // Tab: Indentează cu 2 spații
+                const newValue = 
+                    value.substring(0, start) + 
+                    '  ' + 
+                    value.substring(end);
+                
+                setJsonTextInput(newValue);
+                
+                // Poziționează cursorul după indentare
+                setTimeout(() => {
+                    textarea.selectionStart = start + 2;
+                    textarea.selectionEnd = start + 2;
+                }, 0);
+            }
+            
+            // Declanșează compilarea live
+            setTimeout(() => {
+                try {
+                    const parsedJson = JSON.parse(textarea.value);
+                    setPreviewData(parsedJson);
+                } catch (error) {
+                    setPreviewData(null);
+                }
+            }, 0);
+        } else if (event.key === 'Enter') {
+            // Auto-indentare la Enter
+            event.preventDefault();
+            
+            const lines = value.substring(0, start).split('\n');
+            const currentLine = lines[lines.length - 1];
+            
+            // Calculează indentarea curentă
+            let indent = '';
+            for (let i = 0; i < currentLine.length; i++) {
+                if (currentLine[i] === ' ') {
+                    indent += ' ';
+                } else {
+                    break;
+                }
+            }
+            
+            // Dacă linia se termină cu { sau [, adaugă indentare extra
+            const trimmedLine = currentLine.trim();
+            if (trimmedLine.endsWith('{') || trimmedLine.endsWith('[')) {
+                indent += '  ';
+            }
+            
+            const newValue = 
+                value.substring(0, start) + 
+                '\n' + indent + 
+                value.substring(end);
+            
+            setJsonTextInput(newValue);
+            
+            // Poziționează cursorul după indentare
+            setTimeout(() => {
+                textarea.selectionStart = start + 1 + indent.length;
+                textarea.selectionEnd = start + 1 + indent.length;
+            }, 0);
+            
+            // Declanșează compilarea live
+            setTimeout(() => {
+                try {
+                    const parsedJson = JSON.parse(textarea.value);
+                    setPreviewData(parsedJson);
+                } catch (error) {
+                    setPreviewData(null);
+                }
+            }, 0);
+        }
+    };
+
   // --- DRAG & DROP ELEMENT REORDERING HANDLERS ---
 
     /**
@@ -648,9 +922,10 @@ function App() {
             const entries = Object.entries(parent);
             const fromIndex = entries.findIndex(([key]) => key === draggedElement.key);
             
+            // Verific dacă indexul sursă este valid și dacă indexul țintă este în limitele array-ului
             if (fromIndex !== -1 && targetIndex >= 0 && targetIndex < entries.length && fromIndex !== targetIndex) {
                 const [movedEntry] = entries.splice(fromIndex, 1);
-                entries.splice(targetIndex, 0, movedEntry);
+                entries.splice(targetIndex, 0, movedEntry); // Mută entry-ul la noul index
                 
                 // Reconstruiesc obiectul cu noua ordine
                 const reorderedObject = Object.fromEntries(entries);
@@ -680,8 +955,8 @@ function App() {
     // Funcție pentru auto-scroll în timpul drag-ului
     const handleAutoScroll = (event: React.DragEvent, container: HTMLElement) => {
         const rect = container.getBoundingClientRect();
-        const scrollThreshold = 220; // Pixeli de la marginea containerului (mărit pentru mai multă comoditate)
-        const scrollSpeed = 8; // Viteza de scroll (mărită puțin)
+        const scrollThreshold = 220; 
+        const scrollSpeed = 8; 
 
         const mouseY = event.clientY;
         const containerTop = rect.top;
@@ -699,7 +974,7 @@ function App() {
         }
 
         if (scrollDirection !== 0) {
-            // Începe auto-scroll dacă nu este deja activ
+            // Începe auto-scroll daca nu este deja activ
             if (!autoScrollInterval) {
                 const interval = setInterval(() => {
                     container.scrollTop += scrollDirection;
@@ -723,6 +998,13 @@ function App() {
         }
     };
 
+    // --- REACT EFFECTS ---
+    
+    // Încarcă istoricul fișierelor la pornirea aplicației
+    React.useEffect(() => {
+        loadFileHistory();
+    }, []);
+
   // --- RENDERED COMPONENT (JSX) ---
   return (
     // Containerul principal al aplicației, stilizat cu Flexbox pentru aliniere
@@ -738,7 +1020,7 @@ function App() {
       />
 
       {/* Container pentru conținutul principal, centrat și cu lățime maximă */}
-      <div className="max-w-4xl mx-auto w-full flex flex-col flex-grow">
+      <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow">
         <h1 className="text-4xl font-bold text-center mb-4 text-blue-400">
           JSON Explorer
         </h1>
@@ -798,12 +1080,72 @@ function App() {
                 </p>
               </div>
 
-              <button 
-                onClick={handleCreateNewFile}
-                className='text-2xl mb-4 text-center mt-6 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md transition-all duration-200 cursor-pointer w-full'
-              >
-                ✨ Click here to create a new file
-              </button>
+              {/* Butoanele pentru creare fișier nou și vizualizare istoric */}
+              <div className="flex gap-4 mt-6">
+                <button 
+                  onClick={handleCreateNewFile}
+                  className='w-full text-2xl text-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md transition-all duration-200 cursor-pointer'
+                >
+                  ✨ Create New File
+                </button>
+              </div>
+
+              {/* SECȚIUNEA DE ISTORIC - Afișată întotdeauna sub butoane */}
+              {fileHistory.length > 0 && (
+                <div className="mt-8 p-6 bg-gray-700 rounded-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold text-amber-400">
+                      📚 Recent Files ({fileHistory.length}/10)
+                    </h3>
+                    <button
+                      onClick={clearHistory}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-md transition-all duration-200"
+                    >
+                      🗑️ Clear All
+                    </button>
+                  </div>
+                  
+                  <div className="grid gap-3 max-h-96 overflow-y-auto">
+                    {fileHistory.map((historyItem, index) => (
+                      <div
+                        key={historyItem.id}
+                        className="bg-gray-800 rounded-lg p-3 border border-gray-600 hover:border-amber-500 hover:bg-gray-750 transition-all duration-200 cursor-pointer"
+                        onClick={() => loadFromHistory(historyItem)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-white truncate">
+                                {historyItem.name}
+                              </h4>
+                              <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold shrink-0">
+                                v{historyItem.version}
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-sm truncate">
+                              {historyItem.originalName}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromHistory(historyItem.id);
+                            }}
+                            className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded transition-all duration-200"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        
+                        <div className="flex justify-between items-center mt-2 text-xs text-gray-400">
+                          <span>📅 {historyItem.timestamp.toLocaleDateString()} {historyItem.timestamp.toLocaleTimeString()}</span>
+                          <span>📦 {(historyItem.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -820,7 +1162,7 @@ function App() {
                     onClick={handleCompileJson}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200"
                   >
-                    🔄 Compile & Preview
+                    Compile
                   </button>
                   <button
                     onClick={handleConfirmNewFile}
@@ -843,16 +1185,17 @@ function App() {
               </div>
 
               {/* Container pentru split view */}
-              <div className="flex flex-1 gap-4 min-h-0">
+              <div className="flex flex-1 gap-6 min-h-0">
                 {/* Panoul stâng - Editor text */}
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col min-w-0">
                   <h3 className="text-lg font-semibold text-blue-300 mb-2">
                     📝 JSON Editor
                   </h3>
                   <textarea
                     value={jsonTextInput}
-                    onChange={handleJsonTextChange}
-                    className="flex-1 bg-gray-900 text-green-400 font-mono text-sm p-4 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    className="flex-1 bg-gray-900 text-green-400 font-mono text-sm p-4 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none min-h-96"
                     placeholder="Enter your JSON here..."
                     spellCheck={false}
                   />
@@ -864,11 +1207,11 @@ function App() {
                 </div>
 
                 {/* Panoul drept - Preview */}
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col min-w-0">
                   <h3 className="text-lg font-semibold text-purple-300 mb-2">
                     👁️ Live Preview
                   </h3>
-                  <div className="flex-1 bg-gray-900 p-4 rounded-lg border border-gray-600 overflow-auto">
+                  <div className="flex-1 bg-gray-900 p-4 rounded-lg border border-gray-600 overflow-auto min-h-96">
                     {previewData ? (
                       <JSONTree 
                         data={previewData} 
@@ -878,8 +1221,9 @@ function App() {
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         <div className="text-center">
-                          <div className="text-4xl mb-2">🔄</div>
-                          <p>Click "Compile & Preview" to see your JSON</p>
+                          <div className="text-4xl mb-2">✨</div>
+                          <p>Start typing JSON to see live preview</p>
+                          <p className="text-sm mt-2">Click "Check for Errors" to validate syntax</p>
                         </div>
                       </div>
                     )}
