@@ -105,8 +105,27 @@ What would you like to do with your JSON?`,
       setAiChatHistory(prev => [...prev, aiMessage]);
       setAiPrompt('');
 
-      // Dacă AI-ul a modificat JSON-ul, notifică componenta părinte
-      if (response.modifiedJson && options?.onJsonModified) {
+      // Detectează dacă utilizatorul cere modificări (nu doar explicații)
+      const isModificationRequest = message.toLowerCase().includes('modific') || 
+                                   message.toLowerCase().includes('change') ||
+                                   message.toLowerCase().includes('update') ||
+                                   message.toLowerCase().includes('edit') ||
+                                   message.toLowerCase().includes('add') ||
+                                   message.toLowerCase().includes('remove') ||
+                                   message.toLowerCase().includes('delete') ||
+                                   message.toLowerCase().includes('replace') ||
+                                   message.toLowerCase().includes('insert') ||
+                                   message.toLowerCase().includes('create') ||
+                                   message.toLowerCase().includes('adaugă') ||
+                                   message.toLowerCase().includes('șterge') ||
+                                   message.toLowerCase().includes('sterge') ||
+                                   message.toLowerCase().includes('înlocuiește') ||
+                                   message.toLowerCase().includes('inlocuieste') ||
+                                   message.toLowerCase().includes('creează') ||
+                                   message.toLowerCase().includes('creeaza');
+
+      // Dacă AI-ul a modificat JSON-ul ȘI utilizatorul a cerut modificări, notifică componenta părinte
+      if (response.modifiedJson && isModificationRequest && options?.onJsonModified) {
         options.onJsonModified(response.modifiedJson);
       }
 

@@ -25,7 +25,7 @@ export class AIService {
   constructor(apiKey: string) {
     this.apiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   }
 
   /**
@@ -39,13 +39,14 @@ Current JSON structure:
 ${JSON.stringify(jsonData, null, 2)}
 
 Instructions:
-1. Help the user modify, analyze, or understand the JSON structure
-2. When providing modified JSON, wrap it in triple backticks with "json" language identifier
-3. Always explain what changes you made
-4. Be precise and helpful
-5. If the user asks for modifications, provide the COMPLETE modified JSON structure
+1. Help the user analyze, understand, or modify the JSON structure
+2. ONLY provide JSON code when the user explicitly requests modifications, additions, deletions, or changes
+3. For explanations, analysis, or questions, provide only text responses without JSON blocks
+4. When providing modified JSON (only when requested), wrap it in triple backticks with "json" language identifier
+5. Always explain what changes you made when modifying JSON
+6. Be precise and helpful
 
-Example response format:
+Example response for MODIFICATIONS:
 Here's the modified JSON:
 
 \`\`\`json
@@ -56,6 +57,9 @@ Here's the modified JSON:
 \`\`\`
 
 **Explanation:** I added a new field called "modified" and changed the structure as requested.
+
+Example response for EXPLANATIONS (NO JSON CODE):
+This JSON contains a user object with name, age, and email properties. The "active" field indicates the user's status...
 
 Now, how can I help you with your JSON?`;
   }
