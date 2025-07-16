@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react'; // React și hook-urile pentru state și referințe
 import './index.css'; // Stilurile globale (inclusiv Tailwind CSS)
 import JSONTree from './components/JSONTree'; // Componenta pentru afișarea arborescentă a JSON-ului
+import { AIService } from './services/aiService';
 
 // Definirea componentei principale a aplicației
 function App() {
@@ -64,7 +65,6 @@ function App() {
       size: number;
       version: number;
     }>>([]);
-    const [showHistory, setShowHistory] = useState(false);
 
     // FUNCȚII PENTRU GESTIONAREA ISTORICULUI VERSIUNILOR
 
@@ -148,7 +148,6 @@ function App() {
       setEditedContent(historyItem.content);
       setIsEditing(true);
       setIsNewFile(false);
-      setShowHistory(false);
       
       console.log(`Loaded version ${historyItem.version} of ${historyItem.originalName}`);
     };
@@ -432,6 +431,68 @@ function App() {
 
     // Stare pentru poziția tooltip-ului (unde să apară pe ecran)
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0});
+
+    // HOOK PENTRU AI ASSISTANT - configurare directă
+    const aiService = React.useMemo(() => {
+        // Cheia API este luată din fișierul .env
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        return new AIService(apiKey);
+    }, []);
+
+    const [aiPrompt, setAiPrompt] = React.useState('');
+    const [isAiLoading, setIsAiLoading] = React.useState(false);
+    const [aiError, setAiError] = React.useState<string | null>(null);
+    const [aiChatHistory, setAiChatHistory] = React.useState<Array<{
+        id: string;
+        message: string;
+        isUser: boolean;
+        timestamp: Date;
+    }>>([]);
+
+    const handleSendMessage = async (currentJson: any, fileName: string) => {
+        if (!aiPrompt.trim()) return;
+
+        const userMessage = {
+            id: Date.now().toString(),
+            message: aiPrompt,
+            isUser: true,
+            timestamp: new Date()
+        };
+
+        setAiChatHistory(prev => [...prev, userMessage]);
+        setIsAiLoading(true);
+        setAiError(null);
+
+        try {
+            const response = await aiService.sendMessage(aiPrompt, currentJson, fileName);
+            
+            if (response.modifiedJson) {
+                setEditedContent(response.modifiedJson);
+            }
+
+            const aiMessage = {
+                id: (Date.now() + 1).toString(),
+                message: response.response,
+                isUser: false,
+                timestamp: new Date()
+            };
+
+            setAiChatHistory(prev => [...prev, aiMessage]);
+        } catch (error) {
+            setAiError(error instanceof Error ? error.message : 'AI request failed');
+        } finally {
+            setIsAiLoading(false);
+            setAiPrompt('');
+        }
+    };
+
+    const clearChatHistory = () => {
+        setAiChatHistory([]);
+    };
+
+    const clearError = () => {
+        setAiError(null);
+    };
 
     // Funcție care se execută când mouse-ul SE MIȘCĂ peste un element
     const handleMouseMove = (event: React.MouseEvent) => {
@@ -1105,8 +1166,8 @@ function App() {
                     </button>
                   </div>
                   
-                  <div className="grid gap-3 max-h-96 overflow-y-auto">
-                    {fileHistory.map((historyItem, index) => (
+                  <div className="grid gap-3">
+                    {fileHistory.map((historyItem) => (
                       <div
                         key={historyItem.id}
                         className="bg-gray-800 rounded-lg p-3 border border-gray-600 hover:border-amber-500 hover:bg-gray-750 transition-all duration-200 cursor-pointer"
@@ -1248,95 +1309,204 @@ function App() {
 
           {/* Secțiune care se afișează doar dacă un fișier JSON a fost parsat cu succes */}
           {fileContent && (
-            // Containerul pentru tree view, care crește pentru a umple spațiul rămas
-            <div className="mt-6 p-4 bg-gray-700 rounded-lg flex flex-col flex-grow">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-green-400">
-                  📊 JSON Explorer - Tree View:
-                </h3>
-                {/* Container pentru a grupa butoanele */}
-                <div className="flex gap-2">
-                  {/* Butoanele pentru modul de editare */}
-                  {isEditing ? (
-                    <>
-                      {/* Butonul pentru salvarea modificărilor */}
+            // Containerul principal care va avea layout flex pentru JSON + AI
+            <div className="mt-6 flex gap-6 h-[75vh]">
+              {/* Panoul stâng - JSON Explorer */}
+              <div className="flex-1 min-w-0 p-4 bg-gray-700 rounded-lg flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-green-400">
+                    📊 JSON Explorer - Tree View:
+                  </h3>
+                  {/* Container pentru a grupa butoanele */}
+                  <div className="flex gap-2">
+                    {/* Butoanele pentru modul de editare */}
+                    {isEditing ? (
+                      <>
+                        {/* Butonul pentru salvarea modificărilor */}
+                        <button
+                          className='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
+                          onClick={handleSaveChanges}
+                        >
+                          📥 Download changes
+                        </button>
+                        {/* Butonul pentru ieșirea din modul de editare */}
+                        <button
+                          className='px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
+                          onClick={handleExitEditMode}
+                        >
+                          🚪 Exit Edit Mode
+                        </button>
+                      </>
+                    ) : (
+                      /* Butonul de Editare (doar când nu suntem în edit mode) */
                       <button
-                        className='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
-                        onClick={handleSaveChanges}
+                        className='px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
+                        onClick={handleEditFile}
                       >
-                        📥 Download changes
+                        Edit File
                       </button>
-                      {/* Butonul pentru ieșirea din modul de editare */}
-                      <button
-                        className='px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
-                        onClick={handleExitEditMode}
-                      >
-                        🚪 Exit Edit Mode
-                      </button>
-                    </>
-                  ) : (
-                    /* Butonul de Editare (doar când nu suntem în edit mode) */
+                    )}
+                    {/* Butonul pentru a selecta un alt fisier (tot timpul vizibil) */}
                     <button
-                      className='px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
-                      onClick={handleEditFile}
+                      className='px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
+                      onClick={handleDeletionFile}
                     >
-                      Edit File
+                      Choose another file
                     </button>
+                  </div>
+                </div>
+
+                {/* Container cu scroll pentru conținutul JSON, care se extinde */}
+                <div 
+                  ref={scrollContainerRef}
+                  className="bg-gray-800 p-4 rounded-lg overflow-auto flex-grow max-h-[60vh]"
+                  onDragOver={(e) => {
+                    if (isDragging && scrollContainerRef.current) {
+                      handleAutoScroll(e, scrollContainerRef.current);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (isDragging) {
+                      stopAutoScroll();
+                    }
+                  }}
+                >
+                  {/* Afișăm un indicator visual când suntem în modul de editare */}
+                  {isEditing && (
+                    <div className="mb-3 p-2 bg-yellow-600 bg-opacity-20 rounded border border-yellow-500">
+                      <p className="text-yellow-400 text-sm">
+                        🖊️ Modul de editare activ - Fă click-dreapta pe elementele din arbore pentru opțiuni
+                      </p>
+                    </div>
                   )}
-                  {/* Butonul pentru a selecta un alt fisier (tot timpul vizibil) */}
-                  <button
-                    className='px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
-                    onClick={handleDeletionFile}
-                  >
-                    Choose another file
-                  </button>
+                  {/* Componenta JSONTree primește datele parsate și starea de editare */}
+                  <JSONTree 
+                    data={editedContent} 
+                    isEditing={isEditing} 
+                    onDataChange={handleDataChange}
+                    onPathBasedChange={handlePathBasedChange}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    onMouseMove={handleMouseMove}
+                    path={[]} // Calea inițială pentru root este un array gol
+                    onDeleteElement={handleDeleteElement} // Pasez funcția de delete
+                    onRenameElement={handleRenameElement} // Pasez funcția de redenumire
+                    onChangeValue={handleChangeValue} // Pasez funcția de modificare valori
+                    onDragStart={handleDragStart} // Pasez handler-ul pentru începutul drag-ului
+                    onDragEnd={handleDragEnd} // Pasez handler-ul pentru sfârșitul drag-ului
+                    onReorderElements={handleReorderElements} // Pasez funcția de reordonare
+                    draggedElement={draggedElement} // Pasez elementul care este tras
+                    isDragging={isDragging} // Pasez starea de dragging
+                    onAutoScroll={handleAutoScroll} // Pasez funcția de auto-scroll
+                    onStopAutoScroll={stopAutoScroll} // Pasez funcția pentru oprirea auto-scroll-ului de scroll
+                  />
                 </div>
               </div>
 
-              {/* Container cu scroll pentru conținutul JSON, care se extinde */}
-              <div 
-                ref={scrollContainerRef}
-                className="bg-gray-800 p-4 rounded-lg overflow-auto flex-grow"
-                onDragOver={(e) => {
-                  if (isDragging && scrollContainerRef.current) {
-                    handleAutoScroll(e, scrollContainerRef.current);
-                  }
-                }}
-                onDragLeave={() => {
-                  if (isDragging) {
-                    stopAutoScroll();
-                  }
-                }}
-              >
-                {/* Afișăm un indicator visual când suntem în modul de editare */}
-                {isEditing && (
-                  <div className="mb-3 p-2 bg-yellow-600 bg-opacity-20 rounded border border-yellow-500">
-                    <p className="text-yellow-400 text-sm">
-                      🖊️ Modul de editare activ - Fă click-dreapta pe elementele din arbore pentru opțiuni
-                    </p>
+              {/* Panoul drept - AI Assistant */}
+              <div className="w-80 p-4 bg-gray-700 rounded-lg flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-purple-400">
+                    🤖 AI Assistant (Gemini)
+                  </h3>
+                  {aiChatHistory.length > 0 && (
+                    <button
+                      onClick={clearChatHistory}
+                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-all duration-200"
+                    >
+                      Clear Chat
+                    </button>
+                  )}
+                </div>
+
+                {/* AI Configuration or Chat History */}
+                <div className="flex-1 bg-gray-800 rounded-lg p-3 mb-4 overflow-y-auto min-h-96">
+                  {aiChatHistory.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">🤖</div>
+                        <p className="text-sm">Ask me anything about your JSON!</p>
+                        <p className="text-xs mt-1">I can help you modify, analyze, or understand your data structure.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {aiChatHistory.map((chat) => (
+                        <div
+                          key={chat.id}
+                          className={`p-2 rounded-lg ${
+                            chat.isUser 
+                              ? 'bg-blue-600 text-white ml-4' 
+                              : 'bg-gray-600 text-gray-100 mr-4'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <span className="text-xs opacity-70">
+                              {chat.isUser ? 'You' : 'AI'}
+                            </span>
+                            <span className="text-xs opacity-70">
+                              {chat.timestamp.toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <p className="text-sm mt-1">{chat.message}</p>
+                        </div>
+                      ))}
+                      {isAiLoading && (
+                        <div className="bg-gray-600 text-gray-100 mr-4 p-2 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                            <span className="text-sm">AI is thinking...</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Area */}
+                <div className="space-y-2">
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(editedContent, selectedFile?.name || 'untitled.json');
+                      }
+                    }}
+                    placeholder="Ask me to modify your JSON structure..."
+                    className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none text-sm"
+                    rows={3}
+                    disabled={isAiLoading}
+                  />
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-400">
+                      Press Enter to send, Shift+Enter for new line
+                    </span>
+                    <button
+                      onClick={() => handleSendMessage(editedContent, selectedFile?.name || 'untitled.json')}
+                      disabled={isAiLoading || !aiPrompt.trim()}
+                      className={`px-4 py-2 font-semibold rounded-lg shadow-md transition-all duration-200 ${
+                        isAiLoading || !aiPrompt.trim()
+                          ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      }`}
+                    >
+                      {isAiLoading ? '⏳' : '📤'} Send
+                    </button>
                   </div>
-                )}
-                {/* Componenta JSONTree primește datele parsate și starea de editare */}
-                <JSONTree 
-                  data={editedContent} 
-                  isEditing={isEditing} 
-                  onDataChange={handleDataChange}
-                  onPathBasedChange={handlePathBasedChange}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  onMouseMove={handleMouseMove}
-                  path={[]} // Calea inițială pentru root este un array gol
-                  onDeleteElement={handleDeleteElement} // Pasez funcția de delete
-                  onRenameElement={handleRenameElement} // Pasez funcția de redenumire
-                  onChangeValue={handleChangeValue} // Pasez funcția de modificare valori
-                  onDragStart={handleDragStart} // Pasez handler-ul pentru începutul drag-ului
-                  onDragEnd={handleDragEnd} // Pasez handler-ul pentru sfârșitul drag-ului
-                  onReorderElements={handleReorderElements} // Pasez funcția de reordonare
-                  draggedElement={draggedElement} // Pasez elementul care este tras
-                  isDragging={isDragging} // Pasez starea de dragging
-                  onAutoScroll={handleAutoScroll} // Pasez funcția de auto-scroll
-                  onStopAutoScroll={stopAutoScroll} // Pasez funcția pentru oprirea auto-scroll-ului de scroll
-                />
+                  {aiError && (
+                    <div className="p-2 bg-red-900 bg-opacity-50 border border-red-500 rounded text-red-400 text-sm">
+                      <strong>Error:</strong> {aiError}
+                      <button
+                        onClick={clearError}
+                        className="ml-2 text-red-300 hover:text-red-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
