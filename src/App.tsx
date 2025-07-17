@@ -133,17 +133,26 @@ function App() {
         content: content,
         timestamp: new Date(),
         size: JSON.stringify(content).length,
-        version: 1
+        version: 1 // Inițializăm cu 1, va fi actualizat mai jos
       };
 
       setFileHistory(prev => {
-        // Găsește alte versiuni ale aceluiași fișier
-        const sameFileVersions = prev.filter(item => 
-          item.originalName === newEntry.originalName
-        );
+        console.log('Current history before adding:', prev);
+        console.log('Looking for existing versions of:', fileName);
         
-        // Calculează numărul versiunii
+        // Găsește alte versiuni ale aceluiași fișier
+        const sameFileVersions = prev.filter(item => {
+          const matches = item.originalName === newEntry.originalName;
+          console.log(`Comparing "${item.originalName}" with "${newEntry.originalName}": ${matches}`);
+          return matches;
+        });
+        
+        console.log('Found same file versions:', sameFileVersions);
+        
+        // Calculează numărul versiunii (numărul de versiuni existente + 1)
         newEntry.version = sameFileVersions.length + 1;
+        
+        console.log(`Adding ${fileName} as version ${newEntry.version}. Found ${sameFileVersions.length} existing versions.`);
         
         // Adaugă noua versiune la început
         const updated = [newEntry, ...prev];
@@ -153,6 +162,8 @@ function App() {
         
         // Salvează în localStorage
         saveFileHistory(trimmed);
+        
+        console.log('Updated history:', trimmed);
         
         return trimmed;
       });
