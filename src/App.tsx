@@ -1,7 +1,8 @@
 // Importarea bibliotecilor și componentelor necesare
-import React, { useState, useRef } from 'react'; // React și hook-urile pentru state și referințe
+import React, { useState, useRef, useEffect } from 'react'; // React și hook-urile pentru state și referințe
 import './index.css'; // Stilurile globale (inclusiv Tailwind CSS)
 import JSONTree from './components/JSONTree'; // Componenta pentru afișarea arborescentă a JSON-ului
+import FormattedAIResponse from './components/FormattedAIResponse'; // Componenta pentru formatarea răspunsurilor AI
 import { AIService } from './services/aiService';
 
 // Definirea componentei principale a aplicației
@@ -65,6 +66,28 @@ function App() {
       size: number;
       version: number;
     }>>([]);
+
+    // --- REFS ---
+    // Referință către elementul de input (de tip 'file') pentru a-l putea accesa programatic
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    // Referință către containerul de scroll pentru auto-scroll în timpul drag-ului
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    
+    // Referință pentru auto-scroll în chat
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
+    // --- REACT EFFECTS ---
+    
+    // Încarcă istoricul fișierelor la pornirea aplicației
+    React.useEffect(() => {
+        loadFileHistory();
+    }, []);
+
+    // Auto-scroll pentru chat
+    // useEffect(() => {
+    //     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // }, [aiChatHistory]);
 
     // FUNCȚII PENTRU GESTIONAREA ISTORICULUI VERSIUNILOR
 
@@ -308,13 +331,6 @@ function App() {
       console.log("Starea a fost resetata");
     }
 
-    // --- REFS ---
-    // Referință către elementul de input (de tip 'file') pentru a-l putea accesa programatic
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    
-    // Referință către containerul de scroll pentru auto-scroll în timpul drag-ului
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-
     // --- LOGIC FUNCTIONS ---
 
     /**
@@ -489,6 +505,11 @@ function App() {
     const clearChatHistory = () => {
         setAiChatHistory([]);
     };
+
+    // Auto-scroll pentru chat
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [aiChatHistory]);
 
     const clearError = () => {
         setAiError(null);
@@ -1066,6 +1087,19 @@ function App() {
         loadFileHistory();
     }, []);
 
+
+
+
+
+
+
+
+
+
+
+
+
+    
   // --- RENDERED COMPONENT (JSX) ---
   return (
     // Containerul principal al aplicației, stilizat cu Flexbox pentru aliniere
@@ -1404,23 +1438,27 @@ function App() {
               </div>
 
               {/* Panoul drept - AI Assistant */}
-              <div className="w-80 p-4 bg-gray-700 rounded-lg flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-purple-400">
-                    🤖 AI Assistant (Gemini)
-                  </h3>
+              <div className="w-80 p-4 bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg flex flex-col border border-gray-600">
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-600">
+                  <span className="text-purple-400">🤖</span>
+                  <h3 className="text-lg font-semibold text-purple-300">Jason - JSON AI Assistant</h3>
                   {aiChatHistory.length > 0 && (
                     <button
                       onClick={clearChatHistory}
-                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-all duration-200"
+                      className="ml-auto px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-all duration-200"
                     >
                       Clear Chat
                     </button>
                   )}
                 </div>
+                
+                <div className="text-sm text-gray-400 mb-4 p-2 bg-gray-700 rounded-lg">
+                  <span className="text-purple-300">💬</span> Hi! I'm Jason, your JSON specialist. Ask me anything about your JSON structure, 
+                  or request modifications in natural language.
+                </div>
 
                 {/* AI Configuration or Chat History */}
-                <div className="flex-1 bg-gray-800 rounded-lg p-3 mb-4 overflow-y-auto min-h-96">
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-96 bg-gray-800 rounded-lg p-3">
                   {aiChatHistory.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
                       <div className="text-center">
@@ -1430,35 +1468,42 @@ function App() {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <>
                       {aiChatHistory.map((chat) => (
                         <div
                           key={chat.id}
-                          className={`p-2 rounded-lg ${
-                            chat.isUser 
-                              ? 'bg-blue-600 text-white ml-4' 
-                              : 'bg-gray-600 text-gray-100 mr-4'
+                          className={`p-3 rounded-lg ${
+                            chat.isUser
+                              ? 'bg-blue-600 text-white ml-8'
+                              : 'bg-gray-800 text-gray-100 mr-8 border-l-4 border-purple-500'
                           }`}
                         >
-                          <div className="flex justify-between items-start">
-                            <span className="text-xs opacity-70">
-                              {chat.isUser ? 'You' : 'AI'}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs">
+                              {chat.isUser ? '👤 You' : '🤖 AI Assistant'}
                             </span>
-                            <span className="text-xs opacity-70">
+                            <span className="text-xs opacity-60">
                               {chat.timestamp.toLocaleTimeString()}
                             </span>
                           </div>
-                          <p className="text-sm mt-1">{chat.message}</p>
-                        </div>
-                      ))}
-                      {isAiLoading && (
-                        <div className="bg-gray-600 text-gray-100 mr-4 p-2 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                            <span className="text-sm">AI is thinking...</span>
+                          <div className="text-sm leading-relaxed">
+                            {chat.isUser ? (
+                              chat.message
+                            ) : (
+                              <FormattedAIResponse response={chat.message} />
+                            )}
                           </div>
                         </div>
-                      )}
+                      ))}
+                      <div ref={chatEndRef} />
+                    </>
+                  )}
+                  {isAiLoading && (
+                    <div className="bg-gray-600 text-gray-100 mr-4 p-2 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                        <span className="text-sm">AI is thinking...</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1474,8 +1519,8 @@ function App() {
                         handleSendMessage(editedContent, selectedFile?.name || 'untitled.json');
                       }
                     }}
-                    placeholder="Ask me to modify your JSON structure..."
-                    className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none text-sm"
+                    placeholder="Confess you thoughts"
+                    className="w-full bg-gray-800 text-white p-3 roFunded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none text-sm"
                     rows={3}
                     disabled={isAiLoading}
                   />
