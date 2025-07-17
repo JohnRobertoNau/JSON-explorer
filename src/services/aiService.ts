@@ -32,22 +32,25 @@ export class AIService {
    * Creează system prompt-ul pentru AI
    */
   private createSystemPrompt(jsonData: any, fileName: string): string {
-    return `You are a JSON assistant specialized in helping users modify JSON structures.
+    return `You are Jason, a friendly JSON assistant specialized in helping users modify JSON structures. You have a creative personality and remember our conversation context.
 
 Current JSON file: ${fileName}
 Current JSON structure:
 ${JSON.stringify(jsonData, null, 2)}
 
 Instructions:
-1. Help the user analyze, understand, or modify the JSON structure
-2. ONLY provide JSON code when the user explicitly requests modifications, additions, deletions, or changes
-3. For explanations, analysis, or questions, provide only text responses without JSON blocks
-4. When providing modified JSON (only when requested), wrap it in triple backticks with "json" language identifier
-5. Always explain what changes you made when modifying JSON
-6. Be precise and helpful
+1. Remember our conversation history and refer to previous messages when relevant
+2. Help the user analyze, understand, or modify the JSON structure
+3. Be conversational and friendly - you're Jason, not just "AI Assistant"
+4. ONLY provide JSON code when the user explicitly requests modifications, additions, deletions, or changes
+5. For explanations, analysis, or questions, provide only text responses without JSON blocks
+6. When providing modified JSON (only when requested), wrap it in triple backticks with "json" language identifier
+7. Always explain what changes you made when modifying JSON
+8. Be precise and helpful, but maintain your friendly personality
+9. If the user references something from earlier in our conversation, acknowledge it
 
 Example response for MODIFICATIONS:
-Here's the modified JSON:
+Here's the modified JSON as you requested:
 
 \`\`\`json
 {
@@ -56,12 +59,12 @@ Here's the modified JSON:
 }
 \`\`\`
 
-**Explanation:** I added a new field called "modified" and changed the structure as requested.
+**Explanation:** I added a new field called "modified" and changed the structure as requested, just like we discussed earlier.
 
 Example response for EXPLANATIONS (NO JSON CODE):
-This JSON contains a user object with name, age, and email properties. The "active" field indicates the user's status...
+Based on our conversation, this JSON contains a user object with name, age, and email properties. The "active" field indicates the user's status...
 
-Now, how can I help you with your JSON?`;
+I'm Jason, your JSON specialist. How can I help you today?`;
   }
 
   /**
@@ -74,9 +77,21 @@ Now, how can I help you with your JSON?`;
     chatHistory: AIMessage[] = []
   ): Promise<AIResponse> {
     try {
-      // Creează prompt-ul complet
+      // Creează prompt-ul complet cu istoricul conversației
       const systemPrompt = this.createSystemPrompt(jsonData, fileName);
-      const fullPrompt = `${systemPrompt}\n\nUser: ${userMessage}`;
+      
+      // Construiește contextul conversației din istoric
+      let conversationContext = '';
+      if (chatHistory.length > 0) {
+        conversationContext = '\n\nPrevious conversation:\n';
+        chatHistory.forEach(msg => {
+          const role = msg.isUser ? 'User' : 'Assistant';
+          conversationContext += `${role}: ${msg.message}\n`;
+        });
+        conversationContext += '\n';
+      }
+      
+      const fullPrompt = `${systemPrompt}${conversationContext}Current user message: ${userMessage}`;
 
       // Trimite request-ul către Gemini
       const result = await this.model.generateContent(fullPrompt);

@@ -129,7 +129,7 @@ function App() {
       const newEntry = {
         id: Date.now().toString(),
         name: fileName,
-        originalName: fileName.replace(/_modified(_\d+)?\.json$/, '.json'),
+        originalName: fileName, // Folosim numele fișierului direct
         content: content,
         timestamp: new Date(),
         size: JSON.stringify(content).length,
@@ -287,10 +287,9 @@ function App() {
             const downloadLink = document.createElement('a');
             downloadLink.href = url;
             
-            // Generez numele fișierului (adaug "_modified" înainte de extensie)
+            // Folosesc numele original al fișierului
             const originalName = selectedFile.name;
-            const nameWithoutExtension = originalName.replace('.json', '');
-            const newFileName = `${nameWithoutExtension}_modified.json`;
+            const newFileName = originalName;
             
             downloadLink.download = newFileName;
             
@@ -478,9 +477,10 @@ function App() {
         setAiChatHistory(prev => [...prev, userMessage]);
         setIsAiLoading(true);
         setAiError(null);
+        setAiPrompt(''); // Clear the input immediately after sending
 
         try {
-            const response = await aiService.sendMessage(aiPrompt, currentJson, fileName);
+            const response = await aiService.sendMessage(aiPrompt, currentJson, fileName, aiChatHistory);
             
             if (response.modifiedJson) {
                 setEditedContent(response.modifiedJson);
@@ -498,7 +498,6 @@ function App() {
             setAiError(error instanceof Error ? error.message : 'AI request failed');
         } finally {
             setIsAiLoading(false);
-            setAiPrompt('');
         }
     };
 
@@ -780,13 +779,58 @@ function App() {
         // Verifică dacă utilizatorul a tastat o paranteză deschisă
         if (start === end && start > 0) {
             const lastChar = value[start - 1];
+            const nextChar = value[start]; // Caracterul după cursor
+            
             const pairs: { [key: string]: string } = {
                 '{': '}',
                 '[': ']',
                 '"': '"'
             };
             
-            if (pairs[lastChar]) {
+            // Pentru ghilimele, tratează special
+            if (lastChar === '"') {
+                // Dacă următorul caracter este deja o ghilimea, nu adăuga alta
+                if (nextChar === '"') {
+                    // Procesare normală fără auto-completare
+                    handleJsonTextChange(event);
+                    return;
+                }
+                // Altfel, adaugă ghilimea de închidere
+                const newValue = 
+                    value.substring(0, start) + 
+                    '"' + 
+                    value.substring(start);
+                
+                setJsonTextInput(newValue);
+                
+                // Poziționează cursorul între ghilimele
+                setTimeout(() => {
+                    textarea.selectionStart = start;
+                    textarea.selectionEnd = start;
+                }, 0);
+                
+                // Declanșează compilarea live
+                setTimeout(() => {
+                    try {
+                        const parsedJson = JSON.parse(newValue);
+                        setPreviewData(parsedJson);
+                    } catch (error) {
+                        setPreviewData(null);
+                    }
+                }, 0);
+                
+                return;
+            }
+            
+            // Pentru paranteze și bracket-uri
+            if (pairs[lastChar] && lastChar !== '"') {
+                // Verifică dacă următorul caracter este deja paranteza de închidere
+                if (nextChar === pairs[lastChar]) {
+                    // Nu adăuga alta, procesare normală
+                    handleJsonTextChange(event);
+                    return;
+                }
+                
                 // Adaugă paranteză închisă
                 const newValue = 
                     value.substring(0, start) + 
@@ -827,6 +871,19 @@ function App() {
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const value = textarea.value;
+        
+        // Smart closing brackets/quotes - if user types a closing char that already exists, just move cursor
+        if (start === end) {
+            const nextChar = value[start];
+            const typedChar = event.key;
+            
+            if ((typedChar === '}' || typedChar === ']' || typedChar === '"') && nextChar === typedChar) {
+                event.preventDefault();
+                textarea.selectionStart = start + 1;
+                textarea.selectionEnd = start + 1;
+                return;
+            }
+        }
         
         if (event.key === 'Tab') {
             event.preventDefault(); // Previne comportamentul default (schimbarea focus-ului)
@@ -1179,7 +1236,7 @@ function App() {
               <div className="flex gap-4 mt-6">
                 <button 
                   onClick={handleCreateNewFile}
-                  className='w-full text-2xl text-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md transition-all duration-200 cursor-pointer'
+                  className='w-full text-2xl text-center bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-4 px-6 rounded-lg shadow-md transition-all duration-200 cursor-pointer'
                 >
                   ✨ Create New File
                 </button>
@@ -1303,7 +1360,7 @@ function App() {
 
                 {/* Panoul drept - Preview */}
                 <div className="flex-1 flex flex-col min-w-0">
-                  <h3 className="text-lg font-semibold text-purple-300 mb-2">
+                  <h3 className="text-lg font-semibold text-yellow-300 mb-2">
                     👁️ Live Preview
                   </h3>
                   <div className="flex-1 bg-gray-900 p-4 rounded-lg border border-gray-600 overflow-auto min-h-96">
@@ -1440,8 +1497,8 @@ function App() {
               {/* Panoul drept - AI Assistant */}
               <div className="w-80 p-4 bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg flex flex-col border border-gray-600">
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-600">
-                  <span className="text-purple-400">🤖</span>
-                  <h3 className="text-lg font-semibold text-purple-300">Jason - JSON AI Assistant</h3>
+                  <span className="text-yellow-400">🤖</span>
+                  <h3 className="text-lg font-semibold text-yellow-300">Jason - JSON AI Assistant</h3>
                   {aiChatHistory.length > 0 && (
                     <button
                       onClick={clearChatHistory}
@@ -1452,13 +1509,16 @@ function App() {
                   )}
                 </div>
                 
-                <div className="text-sm text-gray-400 mb-4 p-2 bg-gray-700 rounded-lg">
-                  <span className="text-purple-300">💬</span> Hi! I'm Jason, your JSON specialist. Ask me anything about your JSON structure, 
-                  or request modifications in natural language.
-                </div>
+                {/* Intro text - only show when no chat history exists */}
+                {aiChatHistory.length === 0 && (
+                  <div className="text-sm text-gray-400 mb-4 p-2 bg-gray-700 rounded-lg">
+                    <span className="text-yellow-300">💬</span> Hi! I'm Jason, your JSON specialist. Ask me anything about your JSON structure, 
+                    or request modifications in natural language.
+                  </div>
+                )}
 
                 {/* AI Configuration or Chat History */}
-                <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-96 bg-gray-800 rounded-lg p-3">
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-[500px] bg-gray-800 rounded-lg p-3">
                   {aiChatHistory.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
                       <div className="text-center">
@@ -1475,7 +1535,7 @@ function App() {
                           className={`p-3 rounded-lg ${
                             chat.isUser
                               ? 'bg-blue-600 text-white ml-8'
-                              : 'bg-gray-800 text-gray-100 mr-8 border-l-4 border-purple-500'
+                              : 'bg-gray-800 text-gray-100 mr-8 border-l-4 border-yellow-500'
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-2">
@@ -1501,8 +1561,8 @@ function App() {
                   {isAiLoading && (
                     <div className="bg-gray-600 text-gray-100 mr-4 p-2 rounded-lg">
                       <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                        <span className="text-sm">AI is thinking...</span>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
+                        <span className="text-sm">Jason is cooking... 🍳</span>
                       </div>
                     </div>
                   )}
@@ -1519,8 +1579,8 @@ function App() {
                         handleSendMessage(editedContent, selectedFile?.name || 'untitled.json');
                       }
                     }}
-                    placeholder="Confess you thoughts"
-                    className="w-full bg-gray-800 text-white p-3 roFunded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none text-sm"
+                    placeholder="Confess you thoughts! 😌"
+                    className="w-full bg-gray-800 text-white p-3 roFunded-lg border border-gray-600 focus:border-yellow-500 focus:outline-none resize-none text-sm"
                     rows={3}
                     disabled={isAiLoading}
                   />
@@ -1534,7 +1594,7 @@ function App() {
                       className={`px-4 py-2 font-semibold rounded-lg shadow-md transition-all duration-200 ${
                         isAiLoading || !aiPrompt.trim()
                           ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'bg-yellow-600 hover:bg-yellow-700 text-white'
                       }`}
                     >
                       {isAiLoading ? '⏳' : '📤'} Send
@@ -1588,7 +1648,7 @@ function App() {
             </div>
           )}
           {hoveredElementInfo.type === 'object' && (
-            <div className="text-purple-300">
+            <div className="text-yellow-300">
               Object with {Object.keys(hoveredElementInfo.value || {}).length} properties
             </div>
           )}
@@ -1604,4 +1664,4 @@ function App() {
 }
 
 // Exportă componenta App pentru a putea fi folosită în alte părți ale aplicației (ex: main.tsx)
-export default App;
+export default App; 
