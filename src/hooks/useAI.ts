@@ -14,7 +14,7 @@ export const useAI = (options?: UseAIOptions) => {
   const [aiService, setAiService] = useState<AIService | null>(getAIService());
   const [isConfigured, setIsConfigured] = useState(false);
 
-  // Inițializează serviciul AI
+  // Initialize AI service
   const initializeAI = useCallback(async (apiKey: string, provider: 'openai' | 'claude' | 'gemini' = 'gemini') => {
     try {
       setIsAiLoading(true);
@@ -26,7 +26,7 @@ export const useAI = (options?: UseAIOptions) => {
 
       const service = initializeAIService(apiKey, provider);
       
-      // Testează conexiunea
+      // Test connection
       const isConnected = await service.testConnection();
       if (!isConnected) {
         throw new Error('Failed to connect to AI service');
@@ -35,7 +35,7 @@ export const useAI = (options?: UseAIOptions) => {
       setAiService(service);
       setIsConfigured(true);
       
-      // Adaugă mesaj de bun venit
+      // Add welcome message
       const welcomeMessage: AIMessage = {
         id: Date.now().toString(),
         message: `🤖 AI Assistant connected successfully! I'm ready to help you with your JSON files. You can ask me to:
@@ -63,7 +63,7 @@ What would you like to do with your JSON?`,
     }
   }, [options]);
 
-  // Trimite mesaj către AI
+  // Send message to AI
   const sendMessage = useCallback(async (
     message: string,
     jsonData: any,
@@ -105,7 +105,7 @@ What would you like to do with your JSON?`,
       setAiChatHistory(prev => [...prev, aiMessage]);
       setAiPrompt('');
 
-      // Detectează dacă utilizatorul cere modificări (nu doar explicații)
+      // Detect if user is requesting modifications (not just explanations)
       const isModificationRequest = message.toLowerCase().includes('modific') || 
                                    message.toLowerCase().includes('change') ||
                                    message.toLowerCase().includes('update') ||
@@ -124,7 +124,7 @@ What would you like to do with your JSON?`,
                                    message.toLowerCase().includes('creează') ||
                                    message.toLowerCase().includes('creeaza');
 
-      // Dacă AI-ul a modificat JSON-ul ȘI utilizatorul a cerut modificări, notifică componenta părinte
+      // If AI modified JSON AND user requested modifications, notify parent component
       if (response.modifiedJson && isModificationRequest && options?.onJsonModified) {
         options.onJsonModified(response.modifiedJson);
       }
@@ -138,22 +138,22 @@ What would you like to do with your JSON?`,
     }
   }, [aiService, isConfigured, aiChatHistory, options]);
 
-  // Funcție pentru a trimite mesajul din input
+  // Function to send the message from input
   const handleSendMessage = useCallback((jsonData: any, fileName: string) => {
     sendMessage(aiPrompt, jsonData, fileName);
   }, [aiPrompt, sendMessage]);
 
-  // Șterge istoricul chat-ului
+  // Clear chat history
   const clearChatHistory = useCallback(() => {
     setAiChatHistory([]);
   }, []);
 
-  // Șterge eroarea
+  // Clear error
   const clearError = useCallback(() => {
     setAiError(null);
   }, []);
 
-  // Resetează serviciul AI
+  // Reset AI service
   const resetAI = useCallback(() => {
     setAiService(null);
     setIsConfigured(false);

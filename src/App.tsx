@@ -1,40 +1,40 @@
-// Importarea bibliotecilor și componentelor necesare
-import React, { useState, useRef, useEffect } from 'react'; // React și hook-urile pentru state și referințe
-import './index.css'; // Stilurile globale (inclusiv Tailwind CSS)
-import JSONTree from './components/JSONTree'; // Componenta pentru afișarea arborescentă a JSON-ului
-import FormattedAIResponse from './components/FormattedAIResponse'; // Componenta pentru formatarea răspunsurilor AI
+// Import necessary libraries and components
+import React, { useState, useRef, useEffect } from 'react'; // React and hooks for state and references
+import './index.css'; // Global styles (including Tailwind CSS)
+import JSONTree from './components/JSONTree'; // Component for displaying JSON as a tree
+import FormattedAIResponse from './components/FormattedAIResponse'; // Component for formatting AI responses
 import { AIService } from './services/aiService';
 
-// Definirea componentei principale a aplicației
+// Main app component definition
 function App() {
     // --- STATE MANAGEMENT ---
 
-    // Starea pentru fișierul selectat (obiectul File)
+    // State for the selected file (File object)
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-    // Starea pentru conținutul JSON parsat din fișier (original, neschimbat)
+    // State for parsed JSON content from file (original, unchanged)
     const [fileContent, setFileContent] = useState<any>(null);
 
-    // Starea pentru conținutul JSON modificat (doar în modul de editare)
+    // State for edited JSON content (only in edit mode)
     const [editedContent, setEditedContent] = useState<any>(null);
 
-    // Starea pentru a detecta dacă un fișier este tras deasupra zonei de drop
+    // State to detect if a file is dragged over the drop zone
     const [isDragActive, setIsDragActive] = useState(false);
 
-    // Stare nouă pentru a controla modul de editare
+    // New state to control edit mode
     const [isEditing, setIsEditing] = useState(false);
 
-    // Stare pentru a detecta dacă fișierul este nou creat
+    // State to detect if the file is newly created
     const [isNewFile, setIsNewFile] = useState(false);
 
-    // Stări pentru modul de creare fișier nou cu editor text
+    // States for new file creation mode with text editor
     const [isCreatingNewFile, setIsCreatingNewFile] = useState(false);
     const [jsonTextInput, setJsonTextInput] = useState('{\n  "name": "example",\n  "value": 42,\n  "active": true\n}');
     const [previewData, setPreviewData] = useState<any>(null);
     const [hasJsonError, setHasJsonError] = useState(false);
     const [jsonErrorMessage, setJsonErrorMessage] = useState('');
 
-    // Stare pentru hover și tooltip
+    // State for hover and tooltip
     const [isHovered, setIsHovered] = useState(false);
     const [hoveredElementInfo, setHoveredElementInfo] = useState<{
         name: string;
@@ -43,7 +43,7 @@ function App() {
     } | null>(null);
 
 
-    // STARTI PENTRU REORDONAREA FISIERELOR IN IERARHIE CU CLICK
+    // STATES FOR REORDERING FILES IN HIERARCHY WITH CLICK
     const [draggedElement, setDraggedElement] = useState<{
         path: (string | number)[];
         key: string | number;
@@ -53,10 +53,10 @@ function App() {
     } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    // Stare pentru auto-scroll în timpul drag-ului
+    // State for auto-scroll during drag
     const [autoScrollInterval, setAutoScrollInterval] = useState<number | null>(null);
 
-    // STĂRI PENTRU ISTORICUL VERSIUNILOR
+    // STATES FOR VERSION HISTORY
     const [fileHistory, setFileHistory] = useState<Array<{
       id: string;
       name: string;
@@ -68,38 +68,38 @@ function App() {
     }>>([]);
 
     // --- REFS ---
-    // Referință către elementul de input (de tip 'file') pentru a-l putea accesa programatic
+    // Reference to the input element (type 'file') for programmatic access
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    // Referință către containerul de scroll pentru auto-scroll în timpul drag-ului
+    // Reference to scroll container for auto-scroll during drag
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     
-    // Referință pentru auto-scroll în chat
+    // Reference for auto-scroll in chat
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     // --- REACT EFFECTS ---
     
-    // Încarcă istoricul fișierelor la pornirea aplicației
+    // Load file history on app start
     React.useEffect(() => {
         loadFileHistory();
     }, []);
 
-    // Auto-scroll pentru chat
+    // Auto-scroll for chat
     // useEffect(() => {
     //     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     // }, [aiChatHistory]);
 
-    // FUNCȚII PENTRU GESTIONAREA ISTORICULUI VERSIUNILOR
+    // FUNCTIONS FOR VERSION HISTORY MANAGEMENT
 
     /**
-     * Funcție pentru încărcarea istoricului din localStorage
+     * Function for loading history from localStorage
      */
     const loadFileHistory = () => {
       try {
         const saved = localStorage.getItem('jsonExplorerHistory');
         if (saved) {
           const history = JSON.parse(saved);
-          // Convertim timestamp-urile înapoi în Date objects
+          // Convert timestamps back to Date objects
           const processedHistory = history.map((item: any) => ({
             ...item,
             timestamp: new Date(item.timestamp)
@@ -112,7 +112,7 @@ function App() {
     };
 
     /**
-     * Funcție pentru salvarea istoricului în localStorage
+     * Function for saving history to localStorage
      */
     const saveFileHistory = (history: any[]) => {
       try {
@@ -123,24 +123,24 @@ function App() {
     };
 
     /**
-     * Funcție pentru adăugarea unei noi versiuni în istoric
+     * Function for adding a new version to history
      */
     const addToHistory = (fileName: string, content: any) => {
       const newEntry = {
         id: Date.now().toString(),
         name: fileName,
-        originalName: fileName, // Folosim numele fișierului direct
+        originalName: fileName, // Use the file name directly
         content: content,
         timestamp: new Date(),
         size: JSON.stringify(content).length,
-        version: 1 // Inițializăm cu 1, va fi actualizat mai jos
+        version: 1 // Initialize with 1, will be updated below
       };
 
       setFileHistory(prev => {
         console.log('Current history before adding:', prev);
         console.log('Looking for existing versions of:', fileName);
         
-        // Găsește alte versiuni ale aceluiași fișier
+        // Find other versions of the same file
         const sameFileVersions = prev.filter(item => {
           const matches = item.originalName === newEntry.originalName;
           console.log(`Comparing "${item.originalName}" with "${newEntry.originalName}": ${matches}`);
@@ -149,18 +149,18 @@ function App() {
         
         console.log('Found same file versions:', sameFileVersions);
         
-        // Calculează numărul versiunii (numărul de versiuni existente + 1)
+        // Calculate the version number (number of existing versions + 1)
         newEntry.version = sameFileVersions.length + 1;
         
         console.log(`Adding ${fileName} as version ${newEntry.version}. Found ${sameFileVersions.length} existing versions.`);
         
-        // Adaugă noua versiune la început
+        // Add the new version at the beginning
         const updated = [newEntry, ...prev];
         
-        // Păstrează doar ultimele 10 versiuni
+        // Keep only the last 10 versions
         const trimmed = updated.slice(0, 10);
         
-        // Salvează în localStorage
+        // Save to localStorage
         saveFileHistory(trimmed);
         
         console.log('Updated history:', trimmed);
@@ -170,7 +170,7 @@ function App() {
     };
 
     /**
-     * Funcție pentru încărcarea unei versiuni din istoric
+     * Function for loading a version from history
      */
     const loadFromHistory = (historyItem: any) => {
       const simulatedFile = new File([JSON.stringify(historyItem.content)], historyItem.name, {
@@ -187,7 +187,7 @@ function App() {
     };
 
     /**
-     * Funcție pentru ștergerea unei versiuni din istoric
+     * Function for deleting a version from history
      */
     const removeFromHistory = (itemId: string) => {
       setFileHistory(prev => {
@@ -198,7 +198,7 @@ function App() {
     };
 
     /**
-     * Funcție pentru ștergerea întregului istoric
+     * Function for clearing the entire history
      */
     const clearHistory = () => {
       const confirmClear = confirm("Are you sure you want to clear all file history?");
@@ -210,257 +210,257 @@ function App() {
     };
 
     /**
-     * Callback pentru a primi modificările din JSONTree și a actualiza editedContent.
-     * @param newData - Noile date JSON modificate de către JSONTree
+     * Callback to receive changes from JSONTree and update editedContent.
+     * @param newData - The new modified JSON data from JSONTree
      */
     const handleDataChange = (newData: any) => {
         setEditedContent(newData);
-        console.log("Datele au fost modificate în JSONTree:", newData);
+        console.log("Data has been modified in JSONTree:", newData);
     };
 
     /**
-     * Funcție pentru a modifica un element specific din structura JSON bazată pe path
-     * @param path - Calea către elementul care trebuie modificat
-     * @param newValue - Noua valoare pentru element
+     * Function to modify a specific element in the JSON structure based on path
+     * @param path - The path to the element to be modified
+     * @param newValue - The new value for the element
      */
     const handlePathBasedChange = (path: (string | number)[], newValue: any) => {
-        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        // Create a deep copy of the data to avoid modifying the original
         const newData = JSON.parse(JSON.stringify(editedContent));
         
         if (path.length === 0) {
-            // Dacă path-ul este gol, înlocuiesc întreaga structură (root)
+            // If the path is empty, replace the entire structure (root)
             setEditedContent(newValue);
             return;
         }
         
-        // Navighează către părintele elementului de modificat
+        // Navigate to the parent of the element to be modified
         let current = newData;
         for (let i = 0; i < path.length - 1; i++) {
             current = current[path[i]];
         }
         
-        // Modifică valoarea la path-ul specificat
+        // Modify the value at the specified path
         const lastKey = path[path.length - 1];
         current[lastKey] = newValue;
         
-        // Actualizez starea cu noile date
+        // Update the state with the new data
         setEditedContent(newData);
         console.log(`Element modified at path: [${path.join(', ')}]`, newValue);
     };
 
     /**
-     * Handler pentru a intra în modul de editare.
+     * Handler to enter edit mode.
      */
     const handleEditFile = () => {
-      // Nu mai resetăm starea, ci activăm modul de editare
+      // No longer reset state, just activate edit mode
       setIsEditing(true);
-      console.log("S-a intrat în modul de editare.");
+      console.log("Entered edit mode.");
     }
 
     /**
-     * Handler pentru a ieși din modul de editare.
+     * Handler to exit edit mode.
      */
     const handleExitEditMode = () => {
       setIsEditing(false);
-      // Pentru fișierele nou create, păstrăm conținutul modificat ca fiind originalul
+      // For newly created files, keep the modified content as the original
       if (isNewFile) {
         setFileContent(editedContent);
-        setIsNewFile(false); // Marchează că fișierul nu mai este "nou"
-        console.log("S-a ieșit din modul de editare și conținutul fișierului nou a fost păstrat.");
+        setIsNewFile(false); // Mark that the file is no longer "new"
+        console.log("Exited edit mode and kept the new file content.");
       } else {
-        // Pentru fișierele existente, resetăm la valorile originale pentru a anula modificările nesalvate
+        // For existing files, reset to original values to cancel unsaved changes
         setEditedContent(fileContent);
-        console.log("S-a ieșit din modul de editare și modificările nesalvate au fost anulate.");
+        console.log("Exited edit mode and unsaved changes were cancelled.");
       }
     }
 
     /**
-     * Handler pentru salvarea modificărilor.
-     * Descarcă fișierul JSON modificat pe calculatorul utilizatorului.
+     * Handler for saving changes.
+     * Downloads the modified JSON file to the user's computer.
      */
     const handleSaveChanges = () => {
         if (!editedContent || !selectedFile) {
-            alert("Nu există date de salvat!");
+            alert("No data to save!");
             return;
         }
 
         try {
-            // Convertesc obiectul JSON modificat înapoi în string formatat
-            const jsonString = JSON.stringify(editedContent, null, 2); // null, 2 = formatare frumoasă cu 2 spații
+            // Convert the modified JSON object back to formatted string
+            const jsonString = JSON.stringify(editedContent, null, 2); // null, 2 = beautiful formatting with 2 spaces
             
-            // Creez un Blob (obiect binary) cu conținutul JSON
+            // Create a Blob (binary object) with the JSON content
             const blob = new Blob([jsonString], { type: 'application/json' });
             
-            // Creez un URL temporar pentru blob
+            // Create a temporary URL for the blob
             const url = URL.createObjectURL(blob);
             
-            // Creez un element <a> invizibil pentru a declanșa descărcarea
+            // Create an invisible <a> element to trigger the download
             const downloadLink = document.createElement('a');
             downloadLink.href = url;
             
-            // Folosesc numele original al fișierului
+            // Use the original file name
             const originalName = selectedFile.name;
             const newFileName = originalName;
             
             downloadLink.download = newFileName;
             
-            // Adaug elementul în DOM, fac click pe el, apoi îl șterg
+            // Add the element to DOM, click it, then remove it
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
             
-            // Curăț URL-ul temporar pentru a elibera memoria
+            // Clean up the temporary URL to free memory
             URL.revokeObjectURL(url);
             
-            // Actualizez datele originale cu cele modificate (pentru a preveni reset-ul)
+            // Update the original data with the modified one (to prevent reset)
             setFileContent(editedContent);
             
-            // Adaugă versiunea modificată în istoric
+            // Add the modified version to history
             addToHistory(newFileName, editedContent);
             
-            console.log(`Fișierul "${newFileName}" a fost descărcat cu succes!`);
-            alert(`Fișierul "${newFileName}" a fost salvat cu succes!\nVerifică folderul de descărcări.`);
+            console.log(`File "${newFileName}" was downloaded successfully!`);
+            alert(`File "${newFileName}" was saved successfully!\nCheck your downloads folder.`);
             
         } catch (error) {
-            console.error("Eroare la salvarea fișierului:", error);
-            alert("A apărut o eroare la salvarea fișierului!");
+            console.error("Error saving file:", error);
+            alert("An error occurred while saving the file!");
         }
     }
 
     const handleDeletionFile = () => {
       setSelectedFile(null);
       setFileContent(null);
-      setEditedContent(null); // Resetăm și conținutul de editare
+      setEditedContent(null); // Reset the edit content as well
       setIsEditing(false);
-      setIsNewFile(false); // Resetăm flag-ul pentru fișiere noi
+      setIsNewFile(false); // Reset the flag for new files
 
       if (fileInputRef.current) {
         fileInputRef.current.value = ""; 
       }
 
-      console.log("Starea a fost resetata");
+      console.log("State was reset");
     }
 
     // --- LOGIC FUNCTIONS ---
 
     /**
-     * Funcția centrală pentru procesarea unui fișier.
-     * Citește fișierul, îl parsează ca JSON și actualizează starea aplicației.
-     * @param file - Fișierul care trebuie procesat.
+     * The central function for processing a file.
+     * Reads the file, parses it as JSON and updates the application state.
+     * @param file - The file to be processed.
      */
     const processFile = (file: File) => {
-        setSelectedFile(file); // Salvează informațiile despre fișier
+        setSelectedFile(file); // Save file information
         
-        const reader = new FileReader(); // Inițializează un cititor de fișiere
-        // Setează ce se întâmplă după ce fișierul este citit
+        const reader = new FileReader(); // Initialize a file reader
+        // Set what happens after the file is read
         reader.onload = (e) => {
             try {
-                const result = e.target?.result; // Extrage conținutul citit
+                const result = e.target?.result; // Extract the read content
                 if (typeof result === 'string') {
-                    const content = JSON.parse(result); // Parsează string-ul ca JSON
-                    setFileContent(content); // Actualizează starea cu obiectul JSON original
-                    setEditedContent(content); // Inițializează și versiunea de editare
-                    setIsNewFile(false); // Resetează flag-ul pentru fișiere noi
+                    const content = JSON.parse(result); // Parse the string as JSON
+                    setFileContent(content); // Update state with the original JSON object
+                    setEditedContent(content); // Initialize the edit version as well
+                    setIsNewFile(false); // Reset the flag for new files
                     
-                    // Adaugă fișierul în istoric
+                    // Add the file to history
                     addToHistory(file.name, content);
                     
-                    console.log('Fișier încărcat cu succes:', file.name);
+                    console.log('File loaded successfully:', file.name);
                 }
             } catch (error) {
-                // Gestionează eroarea în cazul în care fișierul nu este un JSON valid
-                alert('Fișierul nu este un JSON valid!');
-                setFileContent(null); // Resetează conținutul original
-                setEditedContent(null); // Resetează și conținutul de editare
-                setSelectedFile(null); // Resetează fișierul selectat
+                // Handle error if the file is not valid JSON
+                alert('The file is not a valid JSON!');
+                setFileContent(null); // Reset original content
+                setEditedContent(null); // Reset edit content as well
+                setSelectedFile(null); // Reset selected file
             }
         };
-        // Pornește citirea fișierului ca text
+        // Start reading the file as text
         reader.readAsText(file);
     };
 
     /**
-     * Handler pentru evenimentul de selectare a unui fișier prin input-ul clasic.
+     * Handler for file selection event through the classic input.
      */
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]; // Preia primul fișier selectat
+        const file = event.target.files?.[0]; // Get the first selected file
         if (file) {
-            processFile(file); // Procesează fișierul
+            processFile(file); // Process the file
         }
     };
 
     /**
-     * Handler pentru click-ul pe buton; deschide fereastra de selecție a fișierelor.
+     * Handler for button click; opens the file selection window.
      */
     const handleButtonClick = () => {
-        fileInputRef.current?.click(); // Simulează un click pe input-ul ascuns
+        fileInputRef.current?.click(); // Simulate a click on the hidden input
     };
 
     // --- DRAG & DROP HANDLERS ---
 
     /**
-     * Handler pentru când un fișier este tras deasupra zonei de drop.
+     * Handler for when a file is dragged over the drop zone.
      */
     const handleDragOver = (event: React.DragEvent) => {
-        event.preventDefault(); // Previne comportamentul default al browser-ului
-        setIsDragActive(true); // Activează starea vizuală de drag
+        event.preventDefault(); // Prevent the browser's default behavior
+        setIsDragActive(true); // Activate the visual drag state
     };
 
     /**
-     * Handler pentru când un fișier părăsește zona de drop.
+     * Handler for when a file leaves the drop zone.
      */
     const handleDragLeave = (event: React.DragEvent) => {
         event.preventDefault();
-        setIsDragActive(false); // Dezactivează starea vizuală de drag
+        setIsDragActive(false); // Deactivate the visual drag state
     };
 
     /**
-     * Handler pentru când un fișier este eliberat (dropped) în zona specificată.
+     * Handler for when a file is dropped in the specified zone.
      */
     const handleDrop = (event: React.DragEvent) => {
         event.preventDefault();
         setIsDragActive(false);
         
-        const files = event.dataTransfer.files; // Preia fișierele din eveniment
+        const files = event.dataTransfer.files; // Get files from the event
         if (files.length > 0) {
             const file = files[0];
             
-            // Verifică dacă fișierul este de tip JSON
+            // Check if the file is JSON type
             if (file.type === 'application/json' || file.name.endsWith('.json')) {
-                processFile(file); // Procesează fișierul
+                processFile(file); // Process the file
             } else {
-                alert('Te rog selectează doar fișiere JSON!');
+                alert('Please select only JSON files!');
             }
         }
     };
 
 
 /*
-    ** Implementare hover și tooltip
+    ** Hover and tooltip implementation
 
 */
-    // Funcție care se execută când mouse-ul INTRĂ peste un element
+    // Function that executes when the mouse ENTERS over an element
     const handleMouseEnter = (elementName: string, elementType: string, elementValue: any) => {
-        setIsHovered(true); // Marchează că mouse-ul este peste ceva
-        setHoveredElementInfo({ // Salvează informațiile despre element
+        setIsHovered(true); // Mark that the mouse is over something
+        setHoveredElementInfo({ // Save information about the element
             name: elementName,
             type: elementType,
             value: elementValue
         });
     };
 
-    // Funcție care se execută când mouse-ul PĂRĂSETE un element
+    // Function that executes when the mouse LEAVES an element
     const handleMouseLeave = () => {
-        setIsHovered(false); // Marchează că mouse-ul nu mai este peste nimic
-        setHoveredElementInfo(null); // Șterge informațiile
+        setIsHovered(false); // Mark that the mouse is no longer over anything
+        setHoveredElementInfo(null); // Clear the information
     };
 
-    // Stare pentru poziția tooltip-ului (unde să apară pe ecran)
+    // State for tooltip position (where it should appear on screen)
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0});
 
-    // HOOK PENTRU AI ASSISTANT - configurare directă
+    // HOOK FOR AI ASSISTANT - direct configuration
     const aiService = React.useMemo(() => {
-        // Cheia API este luată din fișierul .env
+        // The API key is taken from the .env file
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         return new AIService(apiKey);
     }, []);
@@ -516,7 +516,7 @@ function App() {
         setAiChatHistory([]);
     };
 
-    // Auto-scroll pentru chat
+    // Auto-scroll for chat
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [aiChatHistory]);
@@ -525,17 +525,17 @@ function App() {
         setAiError(null);
     };
 
-    // Funcție care se execută când mouse-ul SE MIȘCĂ peste un element
+    // Function that executes when the mouse MOVES over an element
     const handleMouseMove = (event: React.MouseEvent) => {
         setTooltipPosition({
-            x: event.clientX + 10, // Poziția X a mouse-ului + 10 pixeli (să nu fie exact pe cursor)
-            y: event.clientY - 30  // Poziția Y a mouse-ului - 30 pixeli (să fie deasupra cursor-ului)
+            x: event.clientX + 10, // Mouse X position + 10 pixels (so it's not exactly on the cursor)
+            y: event.clientY - 30  // Mouse Y position - 30 pixels (so it's above the cursor)
         });
     };
 
     /**
-     * Funcție pentru ștergerea unui element din structura JSON bazată pe path
-     * @param pathToDelete - Calea către elementul care trebuie șters
+     * Function for deleting an element from the JSON structure based on path
+     * @param pathToDelete - The path to the element to be deleted
      */
     const handleDeleteElement = (pathToDelete: (string | number)[]) => {
         if (pathToDelete.length === 0) {
@@ -543,37 +543,37 @@ function App() {
             return;
         }
 
-        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        // Create a deep copy of the data to avoid modifying the original
         const newData = JSON.parse(JSON.stringify(editedContent));
         
-        // Calculez calea către părintele elementului de șters
-        const parentPath = pathToDelete.slice(0, -1); // Toate elementele mai puțin ultimul
-        const keyToDelete = pathToDelete[pathToDelete.length - 1]; // Ultimul element = cheia de șters
+        // Calculate the path to the parent of the element to be deleted
+        const parentPath = pathToDelete.slice(0, -1); // All elements except the last one
+        const keyToDelete = pathToDelete[pathToDelete.length - 1]; // Last element = key to delete
         
-        // Navighează către părintele elementului de șters
+        // Navigate to the parent of the element to be deleted
         let parent = newData;
         for (const key of parentPath) {
             parent = parent[key];
         }
         
-        // Șterge elementul în funcție de tipul părintelui
+        // Delete the element based on the parent type
         if (Array.isArray(parent)) {
-            // Pentru array-uri, folosesc splice pentru a șterge elementul la index
+            // For arrays, use splice to delete the element at index
             parent.splice(keyToDelete as number, 1);
         } else {
-            // Pentru obiecte, folosesc delete pentru a șterge proprietatea
+            // For objects, use delete to remove the property
             delete parent[keyToDelete];
         }
         
-        // Actualizez starea cu noile date
+        // Update the state with the new data
         setEditedContent(newData);
         console.log(`Element deleted at path: [${pathToDelete.join(', ')}]`);
     };
 
     /**
-     * Funcție pentru redenumirea unui element din structura JSON bazată pe path
-     * @param pathToRename - Calea către elementul care trebuie redenumit
-     * @param newKey - Noul nume (cheie) pentru element
+     * Function for renaming an element in the JSON structure based on path
+     * @param pathToRename - The path to the element to be renamed
+     * @param newKey - The new name (key) for the element
      */
     const handleRenameElement = (pathToRename: (string | number)[], newKey: string) => {
         if (pathToRename.length === 0) {
@@ -581,65 +581,65 @@ function App() {
             return;
         }
 
-        // Validare: verifică dacă noul nume este valid
+        // Validation: check if the new name is valid
         if (!newKey || newKey.trim() === '') {
             alert("New name cannot be empty!");
             return;
         }
 
-        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        // Create a deep copy of the data to avoid modifying the original
         const newData = JSON.parse(JSON.stringify(editedContent));
         
-        // Calculez calea către părintele elementului de redenumit
-        const parentPath = pathToRename.slice(0, -1); // Toate elementele mai puțin ultimul
-        const oldKey = pathToRename[pathToRename.length - 1]; // Ultimul element = cheia veche
+        // Calculate the path to the parent of the element to rename
+        const parentPath = pathToRename.slice(0, -1); // All elements except the last one
+        const oldKey = pathToRename[pathToRename.length - 1]; // Last element = old key
         
-        // Navighează către părintele elementului de redenumit
+        // Navigate to the parent of the element to rename
         let parent = newData;
         for (const key of parentPath) {
             parent = parent[key];
         }
         
-        // Redenumirea se poate face doar pentru obiecte (nu pentru array-uri)
+        // Renaming can only be done for objects (not for arrays)
         if (Array.isArray(parent)) {
             alert("Cannot rename array elements! Array elements are accessed by index.");
             return;
         }
         
-        // Verifică dacă noul nume există deja
+        // Check if the new name already exists
         if (parent.hasOwnProperty(newKey)) {
             const overwrite = confirm(`Key "${newKey}" already exists. Do you want to overwrite it?`);
             if (!overwrite) return;
         }
         
-        // Salvează valoarea veche
+        // Save the old value
         const value = parent[oldKey];
         
-        // Reconstruiește obiectul păstrând ordinea originală
+        // Rebuild the object preserving the original order
         const newParent: any = {};
         for (const key in parent) {
             if (key === oldKey) {
-                // Când ajungem la cheia veche, o înlocuim cu cea nouă
+                // When we reach the old key, replace it with the new one
                 newParent[newKey] = value;
             } else {
-                // Pentru toate celelalte chei, le copiem așa cum sunt
+                // For all other keys, copy them as they are
                 newParent[key] = parent[key];
             }
         }
         
-        // Înlocuiește obiectul părinte cu versiunea reordonată
+        // Replace the parent object with the reordered version
         Object.keys(parent).forEach(key => delete parent[key]);
         Object.assign(parent, newParent);
         
-        // Actualizez starea cu noile date
+        // Update the state with the new data
         setEditedContent(newData);
         console.log(`Element renamed from "${oldKey}" to "${newKey}" at path: [${parentPath.join(', ')}]`);
     };
 
     /**
-     * Funcție pentru modificarea valorii unui element din structura JSON bazată pe path
-     * @param pathToChange - Calea către elementul a cărui valoare trebuie modificată
-     * @param newValue - Noua valoare pentru element
+     * Function for changing the value of an element in the JSON structure based on path
+     * @param pathToChange - The path to the element whose value needs to be changed
+     * @param newValue - The new value for the element
      */
     const handleChangeValue = (pathToChange: (string | number)[], newValue: any) => {
         if (pathToChange.length === 0) {
@@ -647,36 +647,36 @@ function App() {
             return;
         }
 
-        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        // Create a deep copy of the data to avoid modifying the original
         const newData = JSON.parse(JSON.stringify(editedContent));
         
-        // Calculez calea către părintele elementului de modificat
-        const parentPath = pathToChange.slice(0, -1); // Toate elementele mai puțin ultimul
-        const keyToChange = pathToChange[pathToChange.length - 1]; // Ultimul element = cheia de modificat
+        // Calculate the path to the parent of the element to be changed
+        const parentPath = pathToChange.slice(0, -1); // All elements except the last one
+        const keyToChange = pathToChange[pathToChange.length - 1]; // Last element = key to change
         
-        // Navighează către părintele elementului de modificat
+        // Navigate to the parent of the element to be changed
         let parent = newData;
         for (const key of parentPath) {
             parent = parent[key];
         }
         
-        // Modifică valoarea
+        // Change the value
         parent[keyToChange] = newValue;
         
-        // Actualizez starea cu noile date
+        // Update the state with the new data
         setEditedContent(newData);
         console.log(`Value changed at path: [${pathToChange.join(', ')}], New value:`, newValue);
     };
 
     /**
-     * Funcție pentru crearea unui fișier JSON nou (metoda principală - cu editor text)
+     * Function for creating a new JSON file (main method - with text editor)
      */
     const handleCreateNewFile = () => {
         handleCreateNewFileWithEditor();
     };
 
     /**
-     * Funcție pentru crearea unui fișier JSON nou cu editor text
+     * Function for creating a new JSON file with text editor
      */
     const handleCreateNewFileWithEditor = () => {
         setIsCreatingNewFile(true);
@@ -684,11 +684,11 @@ function App() {
         setPreviewData(null);
         setHasJsonError(false);
         setJsonErrorMessage('');
-        console.log("Modul de creare fișier nou cu editor a fost activat");
+        console.log("New file creation mode with editor was activated");
     };
 
     /**
-     * Funcție pentru anularea creării fișierului nou
+     * Function for canceling new file creation
      */
     const handleCancelNewFileCreation = () => {
         setIsCreatingNewFile(false);
@@ -696,11 +696,11 @@ function App() {
         setPreviewData(null);
         setHasJsonError(false);
         setJsonErrorMessage('');
-        console.log("Crearea fișierului nou a fost anulată");
+        console.log("New file creation was cancelled");
     };
 
     /**
-     * Funcție pentru compilarea explicită și afișarea erorilor (doar la apăsarea butonului)
+     * Function for explicit compilation and error display (only when button is pressed)
      */
     const handleCompileJson = () => {
         try {
@@ -708,43 +708,43 @@ function App() {
             setPreviewData(parsedJson);
             setHasJsonError(false);
             setJsonErrorMessage('');
-            console.log("JSON compilat cu succes:", parsedJson);
+            console.log("JSON compiled successfully:", parsedJson);
         } catch (error) {
-            // Afișează eroarea DOAR când butonul este apăsat
+            // Display error ONLY when the button is pressed
             setHasJsonError(true);
-            setJsonErrorMessage(error instanceof Error ? error.message : 'JSON invalid');
+            setJsonErrorMessage(error instanceof Error ? error.message : 'Invalid JSON');
             setPreviewData(null);
-            console.error("Eroare la compilarea JSON:", error);
+            console.error("Error compiling JSON:", error);
         }
     };
 
     /**
-     * Funcție pentru confirmarea și salvarea fișierului creat
+     * Function for confirming and saving the created file
      */
     const handleConfirmNewFile = () => {
         if (!previewData) {
-            alert("Compilează mai întâi JSON-ul pentru a-l putea salva!");
+            alert("First compile the JSON to be able to save it!");
             return;
         }
 
         const newFileName = prompt(`Enter the name for the new file (without .json extension):`);
         if (newFileName && newFileName.trim() !== '') {
-            // Simulez un fișier cu numele dat
+            // Simulate a file with the given name
             const simulatedFile = new File([jsonTextInput], `${newFileName.trim()}.json`, {
                 type: 'application/json'
             });
             
-            // Setez starea aplicației cu noul fișier
+            // Set the application state with the new file
             setSelectedFile(simulatedFile);
             setFileContent(previewData);
             setEditedContent(previewData);
             setIsEditing(true);
             setIsNewFile(true);
             
-            // Adaugă noul fișier în istoric
+            // Add the new file to history
             addToHistory(simulatedFile.name, previewData);
             
-            // Ieși din modul de creare
+            // Exit creation mode
             setIsCreatingNewFile(false);
             setJsonTextInput('{\n  \n}');
             setPreviewData(null);
@@ -756,30 +756,30 @@ function App() {
     };
 
     /**
-     * Funcție pentru actualizarea text input-ului JSON cu compilare live
+     * Function for updating JSON text input with live compilation
      */
     const handleJsonTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = event.target.value;
         setJsonTextInput(newText);
         
-        // Resetează erorile doar dacă erau afișate
+        // Reset errors only if they were displayed
         if (hasJsonError) {
             setHasJsonError(false);
             setJsonErrorMessage('');
         }
         
-        // Compilare live - încearcă să parseze JSON-ul în timp real
+        // Live compilation - try to parse JSON in real time
         try {
             const parsedJson = JSON.parse(newText);
-            setPreviewData(parsedJson); // Actualizează preview-ul dacă JSON-ul este valid
+            setPreviewData(parsedJson); // Update preview if JSON is valid
         } catch (error) {
-            // Dacă JSON-ul nu este valid, doar șterge preview-ul, nu afișa eroarea
+            // If JSON is not valid, just clear the preview, don't show error
             setPreviewData(null);
         }
     };
 
     /**
-     * Funcție pentru auto-completarea parantezelor și ghilimelelor
+     * Function for auto-completion of brackets and quotes
      */
     const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         const textarea = event.target as HTMLTextAreaElement;
@@ -787,10 +787,10 @@ function App() {
         const end = textarea.selectionEnd;
         let value = event.target.value;
         
-        // Verifică dacă utilizatorul a tastat o paranteză deschisă
+        // Check if the user typed an opening bracket
         if (start === end && start > 0) {
             const lastChar = value[start - 1];
-            const nextChar = value[start]; // Caracterul după cursor
+            const nextChar = value[start]; // Character after cursor
             
             const pairs: { [key: string]: string } = {
                 '{': '}',
@@ -798,15 +798,15 @@ function App() {
                 '"': '"'
             };
             
-            // Pentru ghilimele, tratează special
+            // For quotes, handle specially
             if (lastChar === '"') {
-                // Dacă următorul caracter este deja o ghilimea, nu adăuga alta
+                // If the next character is already a quote, don't add another
                 if (nextChar === '"') {
-                    // Procesare normală fără auto-completare
+                    // Normal processing without auto-completion
                     handleJsonTextChange(event);
                     return;
                 }
-                // Altfel, adaugă ghilimea de închidere
+                // Otherwise, add closing quote
                 const newValue = 
                     value.substring(0, start) + 
                     '"' + 
@@ -814,13 +814,13 @@ function App() {
                 
                 setJsonTextInput(newValue);
                 
-                // Poziționează cursorul între ghilimele
+                // Position cursor between quotes
                 setTimeout(() => {
                     textarea.selectionStart = start;
                     textarea.selectionEnd = start;
                 }, 0);
                 
-                // Declanșează compilarea live
+                // Trigger live compilation
                 setTimeout(() => {
                     try {
                         const parsedJson = JSON.parse(newValue);
@@ -833,16 +833,16 @@ function App() {
                 return;
             }
             
-            // Pentru paranteze și bracket-uri
+            // For parentheses and brackets
             if (pairs[lastChar] && lastChar !== '"') {
-                // Verifică dacă următorul caracter este deja paranteza de închidere
+                // Check if the next character is already the closing bracket
                 if (nextChar === pairs[lastChar]) {
-                    // Nu adăuga alta, procesare normală
+                    // Don't add another, normal processing
                     handleJsonTextChange(event);
                     return;
                 }
                 
-                // Adaugă paranteză închisă
+                // Add closing bracket
                 const newValue = 
                     value.substring(0, start) + 
                     pairs[lastChar] + 
@@ -850,13 +850,13 @@ function App() {
                 
                 setJsonTextInput(newValue);
                 
-                // Poziționează cursorul între paranteze
+                // Position cursor between brackets
                 setTimeout(() => {
                     textarea.selectionStart = start;
                     textarea.selectionEnd = start;
                 }, 0);
                 
-                // Declanșează compilarea live
+                // Trigger live compilation
                 setTimeout(() => {
                     try {
                         const parsedJson = JSON.parse(newValue);
@@ -866,16 +866,16 @@ function App() {
                     }
                 }, 0);
                 
-                return; // Nu continua cu procesarea normală
+                return; // Don't continue with normal processing
             }
         }
         
-        // Procesare normală
+        // Normal processing
         handleJsonTextChange(event);
     };
 
     /**
-     * Funcție pentru gestionarea tastelor Tab și Enter în textarea pentru indentare automată
+     * Function for handling Tab and Enter keys in textarea for automatic indentation
      */
     const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         const textarea = event.target as HTMLTextAreaElement;
@@ -897,15 +897,15 @@ function App() {
         }
         
         if (event.key === 'Tab') {
-            event.preventDefault(); // Previne comportamentul default (schimbarea focus-ului)
+            event.preventDefault(); // Prevent default behavior (focus change)
             
             if (event.shiftKey) {
-                // Shift+Tab: Deindentează
+                // Shift+Tab: Unindent
                 const lines = value.substring(0, start).split('\n');
                 const currentLine = lines[lines.length - 1];
                 
                 if (currentLine.startsWith('  ')) {
-                    // Șterge 2 spații de la începutul liniei
+                    // Remove 2 spaces from the beginning of the line
                     const lineStart = start - currentLine.length;
                     const newValue = 
                         value.substring(0, lineStart) + 
@@ -914,14 +914,14 @@ function App() {
                     
                     setJsonTextInput(newValue);
                     
-                    // Poziționează cursorul
+                    // Position cursor
                     setTimeout(() => {
                         textarea.selectionStart = start - 2;
                         textarea.selectionEnd = end - 2;
                     }, 0);
                 }
             } else {
-                // Tab: Indentează cu 2 spații
+                // Tab: Indent with 2 spaces
                 const newValue = 
                     value.substring(0, start) + 
                     '  ' + 
@@ -929,14 +929,14 @@ function App() {
                 
                 setJsonTextInput(newValue);
                 
-                // Poziționează cursorul după indentare
+                // Position cursor after indentation
                 setTimeout(() => {
                     textarea.selectionStart = start + 2;
                     textarea.selectionEnd = start + 2;
                 }, 0);
             }
             
-            // Declanșează compilarea live
+            // Trigger live compilation
             setTimeout(() => {
                 try {
                     const parsedJson = JSON.parse(textarea.value);
@@ -946,13 +946,13 @@ function App() {
                 }
             }, 0);
         } else if (event.key === 'Enter') {
-            // Auto-indentare la Enter
+            // Auto-indentation on Enter
             event.preventDefault();
             
             const lines = value.substring(0, start).split('\n');
             const currentLine = lines[lines.length - 1];
             
-            // Calculează indentarea curentă
+            // Calculate current indentation
             let indent = '';
             for (let i = 0; i < currentLine.length; i++) {
                 if (currentLine[i] === ' ') {
@@ -962,7 +962,7 @@ function App() {
                 }
             }
             
-            // Dacă linia se termină cu { sau [, adaugă indentare extra
+            // If line ends with { or [, add extra indentation
             const trimmedLine = currentLine.trim();
             if (trimmedLine.endsWith('{') || trimmedLine.endsWith('[')) {
                 indent += '  ';
@@ -975,13 +975,13 @@ function App() {
             
             setJsonTextInput(newValue);
             
-            // Poziționează cursorul după indentare
+            // Position cursor after indentation
             setTimeout(() => {
                 textarea.selectionStart = start + 1 + indent.length;
                 textarea.selectionEnd = start + 1 + indent.length;
             }, 0);
             
-            // Declanșează compilarea live
+            // Trigger live compilation
             setTimeout(() => {
                 try {
                     const parsedJson = JSON.parse(textarea.value);
@@ -996,12 +996,12 @@ function App() {
   // --- DRAG & DROP ELEMENT REORDERING HANDLERS ---
 
     /**
-     * Handler pentru începutul drag-ului unui element JSON
-     * @param path - Calea către elementul care este tras
-     * @param key - Cheia/indexul elementului în părintele său
-     * @param value - Valoarea elementului
-     * @param parentType - Tipul părintelui ('object' sau 'array')
-     * @param originalIndex - Indexul original al elementului în listă
+     * Handler for the start of dragging a JSON element
+     * @param path - The path to the element being dragged
+     * @param key - The key/index of the element in its parent
+     * @param value - The value of the element
+     * @param parentType - The type of the parent ('object' or 'array')
+     * @param originalIndex - The original index of the element in the list
      */
     const handleDragStart = (
         path: (string | number)[], 
@@ -1010,7 +1010,7 @@ function App() {
         parentType: 'object' | 'array',
         originalIndex: number
     ) => {
-        if (!isEditing) return; // Activez drag-ul doar în modul de editare
+        if (!isEditing) return; // Enable dragging only in edit mode
         
         setDraggedElement({ 
             path, 
@@ -1024,19 +1024,19 @@ function App() {
     };
 
     /**
-     * Handler pentru sfârșitul drag-ului
+     * Handler for the end of dragging
      */
     const handleDragEnd = () => {
         setDraggedElement(null);
         setIsDragging(false);
-        stopAutoScroll(); // Oprește auto-scroll-ul când drag-ul s-a terminat
+        stopAutoScroll(); // Stop auto-scroll when dragging ends
         console.log("Drag operation ended");
     };
 
     /**
-     * Handler pentru reordonarea efectivă a elementelor
-     * @param sourcePath - Calea către elementul sursă
-     * @param targetIndex - Indexul țintă unde să fie mutat elementul
+     * Handler for effective element reordering
+     * @param sourcePath - The path to the source element
+     * @param targetIndex - The target index where the element should be moved
      */
     const handleReorderElements = (sourcePath: (string | number)[], targetIndex: number) => {
         if (!draggedElement) {
@@ -1044,48 +1044,48 @@ function App() {
             return;
         }
 
-        // Verifică dacă mutarea este în același nivel (nu permitem mutarea între nivele diferite)
+        // Check if the move is at the same level (we don't allow moving between different levels)
         const sourceParentPath = sourcePath.slice(0, -1);
         
-        // Creez o copie profundă a datelor pentru a nu modifica originalul
+        // Create a deep copy of the data to avoid modifying the original
         const newData = JSON.parse(JSON.stringify(editedContent));
         
-        // Navighează către părintele elementului
+        // Navigate to the parent of the element
         let parent = newData;
         for (const key of sourceParentPath) {
             parent = parent[key];
         }
 
         if (Array.isArray(parent)) {
-            // Pentru array-uri: reordonare prin splice
+            // For arrays: reordering through splice
             const fromIndex = draggedElement.originalIndex;
             if (fromIndex !== targetIndex && targetIndex >= 0 && targetIndex < parent.length) {
                 const [movedElement] = parent.splice(fromIndex, 1);
                 parent.splice(targetIndex, 0, movedElement);
                 
-                // Actualizez starea cu noile date
+                // Update the state with the new data
                 setEditedContent(newData);
                 console.log(`Array element moved from index ${fromIndex} to ${targetIndex}`);
             }
         } else if (typeof parent === 'object' && parent !== null) {
-            // Pentru obiecte: reordonare prin reconstrucția obiectului
+            // For objects: reordering through object reconstruction
             const entries = Object.entries(parent);
             const fromIndex = entries.findIndex(([key]) => key === draggedElement.key);
             
-            // Verific dacă indexul sursă este valid și dacă indexul țintă este în limitele array-ului
+            // Check if the source index is valid and if the target index is within array limits
             if (fromIndex !== -1 && targetIndex >= 0 && targetIndex < entries.length && fromIndex !== targetIndex) {
                 const [movedEntry] = entries.splice(fromIndex, 1);
-                entries.splice(targetIndex, 0, movedEntry); // Mută entry-ul la noul index
+                entries.splice(targetIndex, 0, movedEntry); // Move entry to new index
                 
-                // Reconstruiesc obiectul cu noua ordine
+                // Rebuild the object with new order
                 const reorderedObject = Object.fromEntries(entries);
                 
-                // Înlocuiesc obiectul părinte cu versiunea reordonată
+                // Replace the parent object with the reordered version
                 if (sourceParentPath.length === 0) {
-                    // Dacă este root object
+                    // If it's the root object
                     setEditedContent(reorderedObject);
                 } else {
-                    // Dacă este un obiect nested
+                    // If it's a nested object
                     let current = newData;
                     for (let i = 0; i < sourceParentPath.length - 1; i++) {
                         current = current[sourceParentPath[i]];
@@ -1102,7 +1102,7 @@ function App() {
         handleDragEnd();
     };
 
-    // Funcție pentru auto-scroll în timpul drag-ului
+    // Function for auto-scroll during dragging
     const handleAutoScroll = (event: React.DragEvent, container: HTMLElement) => {
         const rect = container.getBoundingClientRect();
         const scrollThreshold = 220; 
@@ -1112,19 +1112,19 @@ function App() {
         const containerTop = rect.top;
         const containerBottom = rect.bottom;
 
-        // Calculează dacă trebuie să facem scroll
+        // Calculate if we need to scroll
         let scrollDirection = 0;
         
         if (mouseY - containerTop < scrollThreshold) {
-            // Scroll în sus
+            // Scroll up
             scrollDirection = -scrollSpeed;
         } else if (containerBottom - mouseY < scrollThreshold) {
-            // Scroll în jos
+            // Scroll down
             scrollDirection = scrollSpeed;
         }
 
         if (scrollDirection !== 0) {
-            // Începe auto-scroll daca nu este deja activ
+            // Start auto-scroll if not already active
             if (!autoScrollInterval) {
                 const interval = setInterval(() => {
                     container.scrollTop += scrollDirection;
@@ -1132,7 +1132,7 @@ function App() {
                 setAutoScrollInterval(interval);
             }
         } else {
-            // Oprește auto-scroll
+            // Stop auto-scroll
             if (autoScrollInterval) {
                 clearInterval(autoScrollInterval);
                 setAutoScrollInterval(null);
@@ -1140,7 +1140,7 @@ function App() {
         }
     };
 
-    // Funcție pentru a opri auto-scroll
+    // Function to stop auto-scroll
     const stopAutoScroll = () => {
         if (autoScrollInterval) {
             clearInterval(autoScrollInterval);
@@ -1150,7 +1150,7 @@ function App() {
 
     // --- REACT EFFECTS ---
     
-    // Încarcă istoricul fișierelor la pornirea aplicației
+    // Load file history on application startup
     React.useEffect(() => {
         loadFileHistory();
     }, []);
@@ -1170,19 +1170,19 @@ function App() {
     
   // --- RENDERED COMPONENT (JSX) ---
   return (
-    // Containerul principal al aplicației, stilizat cu Flexbox pentru aliniere
+    // Main application container, styled with Flexbox for alignment
     <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col">
       
-      {/* Input de tip 'file' ascuns, folosit pentru a deschide fereastra de selecție */}
+      {/* Hidden 'file' type input, used to open the selection window */}
       <input
         type="file"
-        ref={fileInputRef} // Legătura cu referința creată mai sus
-        accept=".json" // Acceptă doar fișiere .json
-        style={{ display: 'none' }} // Ascunde elementul
-        onChange={handleFileSelect} // Atașează handler-ul pentru selecție
+        ref={fileInputRef} // Link with the reference created above
+        accept=".json" // Accept only .json files
+        style={{ display: 'none' }} // Hide the element
+        onChange={handleFileSelect} // Attach the handler for selection
       />
 
-      {/* Container pentru conținutul principal, centrat și cu lățime maximă */}
+      {/* Container for main content, centered and with maximum width */}
       <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow">
         <h1 className="text-4xl font-bold text-center mb-4 text-blue-400">
           JSON Explorer
@@ -1191,17 +1191,17 @@ function App() {
           A graphic editor for JSON files.
         </p>
         
-        {/* Containerul principal pentru interacțiune (dropzone) */}
-        {/* Clasa 'flex-grow' este adăugată condiționat doar dacă există conținut de afișat */}
+        {/* Main container for interaction (dropzone) */}
+        {/* The 'flex-grow' class is added conditionally only if there is content to display */}
         <div className={`bg-gray-800 rounded-lg p-8 shadow-lg flex flex-col ${fileContent ? 'flex-grow' : ''}`}
              onDragOver={handleDragOver}
              onDragLeave={handleDragLeave}
              onDrop={handleDrop}
         >
-          {/* --- ZONA DE SELECTARE FIȘIER (Afișată doar dacă nu avem conținut și nu suntem în modul de creare) --- */}
+          {/* --- FILE SELECTION AREA (Displayed only if we have no content and we're not in create mode) --- */}
           {!fileContent && !isCreatingNewFile && (
             <>
-              {/* Titlul dinamic care se schimbă în funcție de starea de drag */}
+              {/* Dynamic title that changes based on drag state */}
               <h2 className="text-2xl font-semibold mb-4 text-green-400 text-center">
                 {isDragActive 
                   ? 'Drop the file here! 🎯' 
@@ -1209,7 +1209,7 @@ function App() {
                 }
               </h2>
         
-              {/* Butonul vizibil pentru a selecta un fișier */}
+              {/* Visible button to select a file */}
               <div 
                 onClick={handleButtonClick}
                 className={`p-4 rounded-lg text-center cursor-pointer transition-all duration-200 ${
@@ -1226,7 +1226,7 @@ function App() {
                 </p>
               </div>
 
-              {/* Zona vizuală de Drag & Drop, cu stiluri dinamice */}
+              {/* Visual Drag & Drop area with dynamic styles */}
               <div className={`mt-6 p-8 border-2 border-dashed rounded-lg text-center transition-all duration-200 ${
                 isDragActive 
                   ? 'border-green-400 bg-green-500 bg-opacity-20 scale-105' 
@@ -1243,7 +1243,7 @@ function App() {
                 </p>
               </div>
 
-              {/* Butoanele pentru creare fișier nou și vizualizare istoric */}
+              {/* Buttons for creating new file and viewing history */}
               <div className="flex gap-4 mt-6">
                 <button 
                   onClick={handleCreateNewFile}
@@ -1253,7 +1253,7 @@ function App() {
                 </button>
               </div>
 
-              {/* SECȚIUNEA DE ISTORIC - Afișată întotdeauna sub butoane */}
+              {/* HISTORY SECTION - Always displayed under buttons */}
               {fileHistory.length > 0 && (
                 <div className="mt-8 p-6 bg-gray-700 rounded-lg">
                   <div className="flex justify-between items-center mb-4">
@@ -1312,10 +1312,10 @@ function App() {
             </>
           )}
 
-          {/* --- ZONA DE CREARE FIȘIER NOU CU EDITOR TEXT --- */}
+          {/* --- NEW FILE CREATION AREA WITH TEXT EDITOR --- */}
           {!fileContent && isCreatingNewFile && (
             <div className="flex flex-col h-full">
-              {/* Header cu titlu și butoane */}
+              {/* Header with title and buttons */}
               <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-600">
                 <h2 className="text-2xl font-semibold text-green-400">
                   ✨ Create New JSON File
@@ -1347,9 +1347,9 @@ function App() {
                 </div>
               </div>
 
-              {/* Container pentru split view */}
+              {/* Container for split view */}
               <div className="flex flex-1 gap-6 min-h-0">
-                {/* Panoul stâng - Editor text */}
+                {/* Left panel - Text editor */}
                 <div className="flex-1 flex flex-col min-w-0">
                   <h3 className="text-lg font-semibold text-blue-300 mb-2">
                     📝 JSON Editor
@@ -1396,9 +1396,9 @@ function App() {
             </div>
           )}
 
-          {/* --- ZONA DE AFIȘARE CONȚINUT (Afișată doar dacă avem fișier selectat) --- */}
+          {/* --- CONTENT DISPLAY AREA (Displayed only if we have selected file) --- */}
 
-          {/* Secțiune care se afișează doar dacă un fișier a fost selectat */}
+          {/* Section that displays only if a file has been selected */}
           {selectedFile && (
             <div className="mt-6 p-4 bg-gray-700 rounded-lg">
               <h3 className="text-lg font-semibold text-green-400 mb-2">
@@ -1409,29 +1409,29 @@ function App() {
             </div>
           )}
 
-          {/* Secțiune care se afișează doar dacă un fișier JSON a fost parsat cu succes */}
+          {/* Section that displays only if a JSON file has been successfully parsed */}
           {fileContent && (
-            // Containerul principal care va avea layout flex pentru JSON + AI
+            // Main container that will have flex layout for JSON + AI
             <div className="mt-6 flex gap-6 h-[75vh]">
-              {/* Panoul stâng - JSON Explorer */}
+              {/* Left panel - JSON Explorer */}
               <div className="flex-1 min-w-0 p-4 bg-gray-700 rounded-lg flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-green-400">
                     📊 JSON Explorer - Tree View:
                   </h3>
-                  {/* Container pentru a grupa butoanele */}
+                  {/* Container to group buttons */}
                   <div className="flex gap-2">
-                    {/* Butoanele pentru modul de editare */}
+                    {/* Buttons for edit mode */}
                     {isEditing ? (
                       <>
-                        {/* Butonul pentru salvarea modificărilor */}
+                        {/* Button for saving changes */}
                         <button
                           className='px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
                           onClick={handleSaveChanges}
                         >
                           📥 Download changes
                         </button>
-                        {/* Butonul pentru ieșirea din modul de editare */}
+                        {/* Button for exiting edit mode */}
                         <button
                           className='px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
                           onClick={handleExitEditMode}
@@ -1440,7 +1440,7 @@ function App() {
                         </button>
                       </>
                     ) : (
-                      /* Butonul de Editare (doar când nu suntem în edit mode) */
+                      /* Edit Button (only when we're not in edit mode) */
                       <button
                         className='px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
                         onClick={handleEditFile}
@@ -1448,7 +1448,7 @@ function App() {
                         Edit File
                       </button>
                     )}
-                    {/* Butonul pentru a selecta un alt fisier (tot timpul vizibil) */}
+                    {/* Button to select another file (always visible) */}
                     <button
                       className='px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200'
                       onClick={handleDeletionFile}
@@ -1458,7 +1458,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* Container cu scroll pentru conținutul JSON, care se extinde */}
+                {/* Container with scroll for JSON content, which expands */}
                 <div 
                   ref={scrollContainerRef}
                   className="bg-gray-800 p-4 rounded-lg overflow-auto flex-grow max-h-[60vh]"
@@ -1473,11 +1473,11 @@ function App() {
                     }
                   }}
                 >
-                  {/* Afișăm un indicator visual când suntem în modul de editare */}
+                  {/* Display a visual indicator when we're in edit mode */}
                   {isEditing && (
                     <div className="mb-3 p-2 bg-yellow-600 bg-opacity-20 rounded border border-yellow-500">
                       <p className="text-yellow-400 text-sm">
-                        🖊️ Modul de editare activ - Fă click-dreapta pe elementele din arbore pentru opțiuni
+                        🖊️ Edit mode active - Right-click on tree elements for options
                       </p>
                     </div>
                   )}
@@ -1490,22 +1490,22 @@ function App() {
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     onMouseMove={handleMouseMove}
-                    path={[]} // Calea inițială pentru root este un array gol
-                    onDeleteElement={handleDeleteElement} // Pasez funcția de delete
-                    onRenameElement={handleRenameElement} // Pasez funcția de redenumire
-                    onChangeValue={handleChangeValue} // Pasez funcția de modificare valori
-                    onDragStart={handleDragStart} // Pasez handler-ul pentru începutul drag-ului
-                    onDragEnd={handleDragEnd} // Pasez handler-ul pentru sfârșitul drag-ului
-                    onReorderElements={handleReorderElements} // Pasez funcția de reordonare
-                    draggedElement={draggedElement} // Pasez elementul care este tras
-                    isDragging={isDragging} // Pasez starea de dragging
-                    onAutoScroll={handleAutoScroll} // Pasez funcția de auto-scroll
-                    onStopAutoScroll={stopAutoScroll} // Pasez funcția pentru oprirea auto-scroll-ului de scroll
+                    path={[]} // Initial path for root is an empty array
+                    onDeleteElement={handleDeleteElement} // Pass the delete function
+                    onRenameElement={handleRenameElement} // Pass the rename function
+                    onChangeValue={handleChangeValue} // Pass the value modification function
+                    onDragStart={handleDragStart} // Pass the drag start handler
+                    onDragEnd={handleDragEnd} // Pass the drag end handler
+                    onReorderElements={handleReorderElements} // Pass the reordering function
+                    draggedElement={draggedElement} // Pass the element being dragged
+                    isDragging={isDragging} // Pass the dragging state
+                    onAutoScroll={handleAutoScroll} // Pass the auto-scroll function
+                    onStopAutoScroll={stopAutoScroll} // Pass the function to stop auto-scroll
                   />
                 </div>
               </div>
 
-              {/* Panoul drept - AI Assistant */}
+              {/* Right panel - AI Assistant */}
               <div className="w-80 p-4 bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg flex flex-col border border-gray-600">
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-600">
                   <span className="text-yellow-400">🤖</span>
@@ -1629,15 +1629,15 @@ function App() {
         </div>
       </div>
 
-      {/* Tooltip-ul care se afișează când mouse-ul este peste un element */}
+      {/* Tooltip that displays when the mouse is over an element */}
       {isHovered && hoveredElementInfo && (
         <div
           style={{
-            position: 'fixed',        // Se poziționează față de fereastra browser-ului
-            left: tooltipPosition.x,  // Poziția pe orizontală
-            top: tooltipPosition.y,   // Poziția pe verticală
-            zIndex: 1000,            // Să fie deasupra tuturor elementelor
-            pointerEvents: 'none'     // Mouse-ul să treacă prin el (să nu interfereze)
+            position: 'fixed',        // Positioned relative to the browser window
+            left: tooltipPosition.x,  // Horizontal position
+            top: tooltipPosition.y,   // Vertical position
+            zIndex: 1000,            // To be above all other elements
+            pointerEvents: 'none'     // Mouse passes through it (doesn't interfere)
           }}
           className="bg-black bg-opacity-80 text-white px-2 py-1 rounded text-xs border border-gray-600 shadow-lg"
         >
@@ -1674,5 +1674,5 @@ function App() {
   );
 }
 
-// Exportă componenta App pentru a putea fi folosită în alte părți ale aplicației (ex: main.tsx)
+// Export the App component to be used in other parts of the application (e.g., main.tsx)
 export default App; 

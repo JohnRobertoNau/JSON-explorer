@@ -4,19 +4,19 @@ interface JSONTreeProps {
   data: any;
   name?: string;
   level?: number;
-  isEditing?: boolean; // Am adăugat noua proprietate opțională
-  onDataChange?: (newData: any) => void; // Callback pentru propagarea modificărilor
-  onPathBasedChange?: (path: (string | number)[], newValue: any) => void; // Nou callback pentru modificări bazate pe path
-  // Props-uri noi pentru tooltip:
+  isEditing?: boolean; // Added the new optional property
+  onDataChange?: (newData: any) => void; // Callback for propagating changes
+  onPathBasedChange?: (path: (string | number)[], newValue: any) => void; // New callback for path-based changes
+  // New props for tooltip:
   onMouseEnter?: (name: string, type: string, value: any) => void;
   onMouseLeave?: () => void;
   onMouseMove?: (event: React.MouseEvent) => void;
-  // Props pentru path-based operations:
-  path?: (string | number)[]; // Calea către acest element în structura JSON
-  onDeleteElement?: (path: (string | number)[]) => void; // Callback pentru ștergere
-  onRenameElement?: (path: (string | number)[], newKey: string) => void; // Callback pentru redenumire
-  onChangeValue?: (path: (string | number)[], newValue: any) => void; // Callback pentru modificarea valorilor
-  // Props pentru drag & drop reordering:
+  // Props for path-based operations:
+  path?: (string | number)[]; // The path to this element in the JSON structure
+  onDeleteElement?: (path: (string | number)[]) => void; // Callback for deletion
+  onRenameElement?: (path: (string | number)[], newKey: string) => void; // Callback for renaming
+  onChangeValue?: (path: (string | number)[], newValue: any) => void; // Callback for value changes
+  // Props for drag & drop reordering:
   onDragStart?: (path: (string | number)[], key: string | number, value: any, parentType: 'object' | 'array', originalIndex: number) => void;
   onDragEnd?: () => void;
   onReorderElements?: (sourcePath: (string | number)[], targetIndex: number) => void;
@@ -36,7 +36,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   onMouseEnter,
   onMouseLeave,
   onMouseMove,
-  path = [], // Calea implicită este un array gol (root)
+  path = [], // The default path is an empty array (root)
   onDeleteElement,
   onRenameElement,
   onChangeValue,
@@ -49,22 +49,22 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   onAutoScroll,
   onStopAutoScroll
 }) => {
-  const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand primele 2 niveluri
+  const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand first 2 levels
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: string; value: any; key?: string } | null>(null);
   const [typeSelectionMenu, setTypeSelectionMenu] = useState<{ x: number; y: number; targetType: 'object' | 'array' | 'primitive'; targetKey?: string } | null>(null);
   
-  // Stare locală pentru drag over index - fiecare instanță JSONTree are propria stare
+  // Local state for drag over index - each JSONTree instance has its own state
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
 
   const renameFunction = (value: any, key?: string) => {
-    if (!isEditing) return; // Activăm funcția doar în modul de editare
-    if (!key) return; // Nu putem redenumi elementul fără o cheie
+    if (!isEditing) return; // Enable function only in edit mode
+    if (!key) return; // Cannot rename element without a key
 
     const type = getValueType(value);
     let promptMessage = '';
     
-    // Determinăm mesajul în funcție de tip
+    // Determine the message based on type
     if (type === 'object') {
       promptMessage = `Enter the new name for object "${key}":`;
     } else if (type === 'array') {
@@ -78,7 +78,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
     if (newName !== null && newName.trim() !== '' && newName !== key) {
       console.log(`Renaming "${key}" to "${newName}"`);
       
-      // Implementare completă cu onRenameElement
+      // Complete implementation with onRenameElement
       if (onRenameElement && path.length > 0) {
         onRenameElement(path, newName);
       } else {
@@ -88,41 +88,41 @@ const JSONTree: React.FC<JSONTreeProps> = ({
     }
   };
 
-  // Handler pentru click-dreapta
+  // Handler for right-click
   const handleContextMenu = (event: React.MouseEvent, value: any, key?: string) => {
-    if (!isEditing) return; // Activăm meniul doar în modul de editare
+    if (!isEditing) return; // Enable menu only in edit mode
 
     event.preventDefault();
     event.stopPropagation();
     
     const type = getValueType(value);
     
-    // Calculăm poziția pentru meniu bazat pe poziția cursorului
-    // Adăugăm logică pentru a evita ieșirea din ecran
-    const menuWidth = 180; // Lățimea aproximativă a meniului (mai mare pentru siguranță)
-    const menuHeight = type === 'object' ? 120 : type === 'array' ? 120 : 160; // Înălțimea variabilă în funcție de tipul meniului
-    const padding = 20; // Padding mai mare de la marginea ecranului
+    // Calculate position for menu based on cursor position
+    // Add logic to avoid going off screen
+    const menuWidth = 180; // Approximate menu width (larger for safety)
+    const menuHeight = type === 'object' ? 120 : type === 'array' ? 120 : 160; // Variable height based on menu type
+    const padding = 20; // Larger padding from screen edge
     
     let x = event.clientX;
     let y = event.clientY;
     
-    // Verificăm dacă meniul ar ieși din partea dreaptă a ecranului
+    // Check if menu would go off the right side of screen
     if (x + menuWidth > window.innerWidth - padding) {
       x = window.innerWidth - menuWidth - padding;
     }
     
-    // Verificăm dacă meniul ar ieși din partea de jos a ecranului
+    // Check if menu would go off the bottom of screen
     if (y + menuHeight > window.innerHeight - padding) {
-      // Încercăm să îl poziționăm deasupra cursorului
+      // Try to position it above the cursor
       y = event.clientY - menuHeight - 10;
       
-      // Dacă nici deasupra nu încape, îl punem cât mai sus posibil
+      // If it doesn't fit above either, put it as high as possible
       if (y < padding) {
         y = window.innerHeight - menuHeight - padding;
       }
     }
     
-    // Nu lăsăm meniul să iasă din partea de sus sau stânga
+    // Don't let menu go off the top or left
     if (x < padding) x = padding;
     if (y < padding) y = padding;
     
@@ -135,7 +135,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
     });
   };
 
-  // Handler pentru a închide meniul
+  // Handler to close the menu
   const handleCloseContextMenu = (event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation(); 
@@ -147,19 +147,19 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   const addElement = (
     elementType: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null'
   ): void => {
-    // Folosim typeSelectionMenu pentru a obține informațiile despre context
+    // Use typeSelectionMenu to get context information
     const currentContext = typeSelectionMenu || contextMenu;
     if (!currentContext) return;
 
     let fieldName = '';
     let newValue: any;
 
-    // Determinăm tipul contextului
+    // Determine the context type
     const contextType = typeSelectionMenu ? typeSelectionMenu.targetType : contextMenu!.type;
 
-    // Pentru array-uri, nu avem nevoie de nume de câmp
+    // For arrays, we don't need field names
     if (contextType === 'array') {
-      // Pentru array-uri, creăm direct valoarea în funcție de tip
+      // For arrays, create the value directly based on type
       switch(elementType) {
         case 'object':
           newValue = {};
@@ -196,22 +196,22 @@ const JSONTree: React.FC<JSONTreeProps> = ({
       console.log(`Adding ${elementType} to array with value:`, newValue);
       
       if (onPathBasedChange) {
-        // Pentru array-uri, modificăm array-ul întreg la path-ul curent
+        // For arrays, modify the entire array at the current path
         const newArray = [...data, newValue];
-        onPathBasedChange(path, newArray); // Modificăm array-ul întreg la path-ul curent
+        onPathBasedChange(path, newArray); // Modify the entire array at the current path
       } else if (onDataChange) {
         const newData = [...data, newValue];
         onDataChange(newData);
       }
     } 
-    // Pentru obiecte și primitive, avem nevoie de nume de câmp
+    // For objects and primitives, we need field names
     else {
       fieldName = prompt(`Enter the name of the new field:`) || '';
       if (!fieldName.trim()) {
-        return; // Anulează dacă nu e introdus un nume valid
+        return; // Cancel if no valid name is entered
       }
 
-      // Verifică dacă câmpul există deja
+      // Check if the field already exists
       if (typeof data === 'object' && data !== null && data.hasOwnProperty(fieldName)) {
         const overwrite = confirm(`Field "${fieldName}" already exists. Do you want to overwrite it?`);
         if (!overwrite) return;
@@ -253,9 +253,9 @@ const JSONTree: React.FC<JSONTreeProps> = ({
       console.log(`Adding ${elementType} "${fieldName}" with value:`, newValue);
       
       if (onPathBasedChange) {
-        // Pentru obiecte, calculăm path-ul către noul câmp
+        // For objects, calculate the path to the new field
         const newFieldPath = [...path, fieldName];
-        onPathBasedChange(newFieldPath, newValue); // Adăugăm noul câmp la path-ul specificat
+        onPathBasedChange(newFieldPath, newValue); // Add the new field at the specified path
       } else if (onDataChange) {
         if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
           const newData = { ...data, [fieldName]: newValue };
@@ -266,40 +266,40 @@ const JSONTree: React.FC<JSONTreeProps> = ({
   };
 
   const showTypeSelectionMenu = (x: number, y: number) => {
-    const typeMenuWidth = 150; // Lățimea meniului de tip (mai mare)
-    const typeMenuHeight = 200; // Înălțimea meniului de tip (6 opțiuni * ~33px fiecare)
-    const padding = 20; // Padding mai mare
+    const typeMenuWidth = 150; // Type menu width (larger)
+    const typeMenuHeight = 200; // Type menu height (6 options * ~33px each)
+    const padding = 20; // Larger padding
     
-    // Calculăm poziția inițială (alături de meniul contextual)
-    let typeMenuX = x + 200; // Poziționează meniul alături de cel contextual
+    // Calculate initial position (next to context menu)
+    let typeMenuX = x + 200; // Position menu next to the contextual one
     let typeMenuY = y;
     
-    // Verificăm dacă meniul de tip ar ieși din partea dreaptă a ecranului
+    // Check if type menu would go off the right side of screen
     if (typeMenuX + typeMenuWidth > window.innerWidth - padding) {
-      // Dacă nu încape în dreapta, îl punem în stânga meniului contextual
+      // If it doesn't fit on the right, put it to the left of context menu
       typeMenuX = x - typeMenuWidth - 20;
       
-      // Dacă nici în stânga nu încape, îl punem cât mai aproape de marginea stângă
+      // If it doesn't fit on the left either, put it as close to left edge as possible
       if (typeMenuX < padding) {
         typeMenuX = padding;
       }
     }
     
-    // Verificăm dacă meniul de tip ar ieși din partea de jos a ecranului
+    // Check if type menu would go off the bottom of screen
     if (typeMenuY + typeMenuHeight > window.innerHeight - padding) {
-      // Încercăm să îl poziționăm deasupra
+      // Try to position it above
       typeMenuY = y - typeMenuHeight - 10;
       
-      // Dacă nici deasupra nu încape, îl punem cât mai sus posibil
+      // If it doesn't fit above either, put it as high as possible
       if (typeMenuY < padding) {
         typeMenuY = window.innerHeight - typeMenuHeight - padding;
       }
     }
     
-    // Nu lăsăm meniul să iasă din partea de sus
+    // Don't let menu go off the top
     if (typeMenuY < padding) typeMenuY = padding;
     
-    // Nu mai resetăm contextMenu aici, ci doar afișăm meniul de selecție
+    // Don't reset contextMenu here, just show selection menu
     setTypeSelectionMenu({ 
       x: typeMenuX,
       y: typeMenuY,
@@ -308,27 +308,27 @@ const JSONTree: React.FC<JSONTreeProps> = ({
     });
   };
 
-  // Handler pentru opțiunile din meniu
+  // Handler for menu options
   const handleMenuOption = (action: string) => {
     if (!contextMenu) return;
     
     const { type, value, key } = contextMenu;
     
-    // Acțiuni pentru OBIECTE
+    // Actions for OBJECTS
     if (type === 'object') {
       switch (action) {
         case 'rename':
-          // Închide meniul mai întâi
+          // Close menu first
           setContextMenu(null);
           renameFunction(value, key);
           break;
         case 'delete':
-          // Închide meniul mai întâi
+          // Close menu first
           setContextMenu(null);
           const confirmObjectDelete = confirm(`Are you sure you want to delete the object "${key}"?`);
           if (confirmObjectDelete) {
             console.log(`Deleting object "${key}" at path:`, path);
-            // Implementare: șterge obiectul folosind path-ul
+            // Implementation: delete object using path
             if (onDeleteElement && path.length > 0) {
               onDeleteElement(path);
             }
@@ -336,16 +336,16 @@ const JSONTree: React.FC<JSONTreeProps> = ({
           break;
         case 'add-element':
           showTypeSelectionMenu(contextMenu.x, contextMenu.y);
-          // Nu închide contextMenu aici pentru a păstra referința
+          // Don't close contextMenu here to keep reference
           break;
       }
     }
 
-    // Acțiuni pentru ARRAY-URI
+    // Actions for ARRAYS
     else if (type === 'array') {
       switch (action) {
         case 'rename':
-          // Închide meniul mai întâi
+          // Close menu first
           setContextMenu(null);
           renameFunction(value, key);
           break;
@@ -363,30 +363,30 @@ const JSONTree: React.FC<JSONTreeProps> = ({
           break;
         case 'add-element':
           showTypeSelectionMenu(contextMenu.x, contextMenu.y);
-          // Nu închide contextMenu aici pentru a păstra referința
+          // Don't close contextMenu here to keep reference
           break;
       }
     }
-    // Acțiuni pentru VALORI PRIMITIVE
+    // Actions for PRIMITIVE VALUES
     else {
       switch (action) {
         case 'change-field-name':
-          // Închide meniul mai întâi
+          // Close menu first
           setContextMenu(null);
           renameFunction(value, key);
           break;
         case 'change-value':
-          // Închide meniul mai întâi
+          // Close menu first
           setContextMenu(null);
           const currentValue = JSON.stringify(value);
           const newValue = prompt(`Enter the new value for "${key}":`, currentValue);
           if (newValue !== null && newValue.trim() !== '') {
             try {
-              // Încearcă să parseze ca JSON pentru a păstra tipul
+              // Try to parse as JSON to preserve type
               const parsedValue = JSON.parse(newValue);
               console.log(`Changing value of "${key}" from ${currentValue} to ${newValue}`);
               
-              // Implementare completă cu onChangeValue
+              // Complete implementation with onChangeValue
               if (onChangeValue && path.length > 0) {
                 onChangeValue(path, parsedValue);
               } else {
@@ -394,10 +394,10 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                 console.log(`Path: [${path.join(', ')}], Old value: ${currentValue}, New value: ${newValue}`);
               }
             } catch (error) {
-              // Tratează ca string dacă nu e JSON valid
+              // Treat as string if it's not valid JSON
               console.log(`Changing value of "${key}" from ${currentValue} to "${newValue}" (as string)`);
               
-              // Implementare completă cu onChangeValue pentru string
+              // Complete implementation with onChangeValue for string
               if (onChangeValue && path.length > 0) {
                 onChangeValue(path, newValue);
               } else {
@@ -409,10 +409,10 @@ const JSONTree: React.FC<JSONTreeProps> = ({
           break;
         case 'add-field':
           showTypeSelectionMenu(contextMenu.x, contextMenu.y);
-          // Nu închide contextMenu aici pentru a păstra referința
+          // Don't close contextMenu here to keep reference
           break;
         case 'delete':
-          // Închide meniul mai întâi
+          // Close menu first
           setContextMenu(null);
           const confirmFieldDelete = confirm(`Are you sure you want to delete the field "${key}"?`);
           if (confirmFieldDelete) {
@@ -491,7 +491,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                     draggedElement.path[draggedElement.path.length - 1] === index &&
                     draggedElement.path.slice(0, -1).every((p, i) => p === path[i]);
                   
-                  // Verificăm că drag over se întâmplă la nivelul corect (același părinte)
+                  // Check that drag over happens at the correct level (same parent)
                   const isAtCorrectLevel = draggedElement && 
                     draggedElement.path.length === path.length + 1 &&
                     draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
@@ -517,7 +517,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                         if (!isEditing) return;
                         e.preventDefault();
                         
-                        // Setează drag over doar dacă este la nivelul corect
+                        // Set drag over only if at the correct level
                         if (draggedElement && 
                             draggedElement.path.length === path.length + 1 &&
                             draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
@@ -530,7 +530,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                         if (!isEditing) return;
                         e.stopPropagation();
                         
-                        // Reset drag over doar dacă este la nivelul corect
+                        // Reset drag over only if at the correct level
                         if (draggedElement && 
                             draggedElement.path.length === path.length + 1 &&
                             draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
@@ -543,7 +543,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        // Verificăm că drag-ul este în același parent
+                        // Check that the drag is in the same parent
                         const parentPath = path;
                         const draggedParentPath = draggedElement.path.slice(0, -1);
                         const isSameParent = parentPath.length === draggedParentPath.length &&
@@ -595,7 +595,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                     draggedElement.path[draggedElement.path.length - 1] === childKey &&
                     draggedElement.path.slice(0, -1).every((p, i) => p === path[i]);
                   
-                  // Verificăm că drag over se întâmplă la nivelul corect (același părinte)
+                  // Check that drag over happens at the correct level (same parent)
                   const isAtCorrectLevel = draggedElement && 
                     draggedElement.path.length === path.length + 1 &&
                     draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
@@ -621,7 +621,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                         if (!isEditing) return;
                         e.preventDefault();
                         
-                        // Setează drag over doar dacă este la nivelul corect
+                        // Set drag over only if at the correct level
                         if (draggedElement && 
                             draggedElement.path.length === path.length + 1 &&
                             draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
@@ -634,7 +634,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                         if (!isEditing) return;
                         e.stopPropagation();
                         
-                        // Reset drag over doar dacă este la nivelul corect
+                        // Reset drag over only if at the correct level
                         if (draggedElement && 
                             draggedElement.path.length === path.length + 1 &&
                             draggedElement.path.slice(0, -1).every((p, i) => p === path[i]) &&
@@ -647,7 +647,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        // Verificăm că drag-ul este în același parent
+                        // Check that the drag is in the same parent
                         const parentPath = path;
                         const draggedParentPath = draggedElement.path.slice(0, -1);
                         const isSameParent = parentPath.length === draggedParentPath.length &&
@@ -727,7 +727,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
       {renderValue(data, name)}
       {contextMenu && (
         <>
-          {/* Overlay pentru a prinde click-urile în afara meniului */}
+          {/* Overlay to catch clicks outside the menu */}
           <div 
             className="fixed inset-0 z-10" 
             onClick={handleCloseContextMenu}
@@ -743,10 +743,10 @@ const JSONTree: React.FC<JSONTreeProps> = ({
             className="bg-white text-black rounded shadow-lg py-1 min-w-[150px]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Opțiuni pentru OBIECTE */}
+            {/* Options for OBJECTS */}
             {contextMenu.type === 'object' ? (
               <>
-                {/* Afișăm opțiunea de redenumire doar dacă nu suntem la root */}
+                {/* Show rename option only if we're not at root */}
                 {path.length > 0 && (
                   <div 
                     className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
@@ -761,7 +761,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                 >
                   ➕ Add Element
                 </div>
-                {/* Afișăm opțiunea de ștergere doar dacă nu suntem la root */}
+                {/* Show delete option only if we're not at root */}
                 {path.length > 0 && (
                   <div 
                     className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
@@ -772,10 +772,10 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                 )}
               </>
             ) 
-            /* Opțiuni pentru ARRAY-URI */
+            /* Options for ARRAYS */
             : contextMenu.type === 'array' ? (
               <>
-                {/* Afișăm opțiunea de redenumire doar dacă nu suntem la root */}
+                {/* Show rename option only if we're not at root */}
                 {path.length > 0 && (
                   <div 
                     className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
@@ -790,7 +790,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                 >
                   ➕ Add Element
                 </div>
-                {/* Afișăm opțiunea de ștergere doar dacă nu suntem la root */}
+                {/* Show delete option only if we're not at root */}
                 {path.length > 0 && (
                   <div 
                     className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
@@ -801,10 +801,10 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                 )}
               </>
             ) 
-            /* Opțiuni pentru VALORI PRIMITIVE */
+            /* Options for PRIMITIVE VALUES */
             : (
               <>
-                {/* Afișăm opțiunea de schimbare nume doar dacă nu suntem la root */}
+                {/* Show change name option only if we're not at root */}
                 {path.length > 0 && (
                   <div 
                     className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm"
@@ -819,7 +819,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
                 >
                   Change Value
                 </div>
-                {/* Afișăm opțiunea de ștergere doar dacă nu suntem la root */}
+                {/* Show delete option only if we're not at root */}
                 {path.length > 0 && (
                   <div 
                     className="px-4 py-2 hover:bg-red-100 text-red-600 cursor-pointer text-sm border-t border-gray-200"
@@ -834,7 +834,7 @@ const JSONTree: React.FC<JSONTreeProps> = ({
         </>
       )}
       
-      {/* Meniul de selecție tip pentru adăugare elemente */}
+      {/* Type selection menu for adding elements */}
       {typeSelectionMenu && (
         <div
           style={{ 

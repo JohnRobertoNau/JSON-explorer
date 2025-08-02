@@ -1,5 +1,5 @@
 /**
- * Serviciul AI pentru comunicarea cu Google Gemini
+ * AI Service for communication with Google Gemini
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -29,7 +29,7 @@ export class AIService {
   }
 
   /**
-   * Creează system prompt-ul pentru AI
+   * Creates system prompt for AI
    */
   private createSystemPrompt(jsonData: any, fileName: string): string {
     return `You are Jason, a friendly JSON assistant specialized in helping users modify JSON structures. You have a creative personality and remember our conversation context.
@@ -68,7 +68,7 @@ I'm Jason, your JSON specialist. How can I help you today?`;
   }
 
   /**
-   * Funcția principală pentru comunicarea cu AI
+   * Main function for AI communication
    */
   async sendMessage(
     userMessage: string,
@@ -77,10 +77,10 @@ I'm Jason, your JSON specialist. How can I help you today?`;
     chatHistory: AIMessage[] = []
   ): Promise<AIResponse> {
     try {
-      // Creează prompt-ul complet cu istoricul conversației
+      // Create complete prompt with conversation history
       const systemPrompt = this.createSystemPrompt(jsonData, fileName);
       
-      // Construiește contextul conversației din istoric
+      // Build conversation context from history
       let conversationContext = '';
       if (chatHistory.length > 0) {
         conversationContext = '\n\nPrevious conversation:\n';
@@ -93,12 +93,12 @@ I'm Jason, your JSON specialist. How can I help you today?`;
       
       const fullPrompt = `${systemPrompt}${conversationContext}Current user message: ${userMessage}`;
 
-      // Trimite request-ul către Gemini
+      // Send request to Gemini
       const result = await this.model.generateContent(fullPrompt);
       const response = await result.response;
       const aiResponse = response.text();
 
-      // Procesează răspunsul pentru a extrage JSON modificat
+      // Process response to extract modified JSON
       const modifiedJson = this.extractModifiedJson(aiResponse);
       
       return {
@@ -114,17 +114,17 @@ I'm Jason, your JSON specialist. How can I help you today?`;
   }
 
   /**
-   * Extrage JSON modificat din răspunsul AI
+   * Extract modified JSON from AI response
    */
   private extractModifiedJson(response: string): any | null {
     try {
-      // Caută pattern-uri pentru JSON în răspuns
+      // Look for JSON patterns in response
       const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[1]);
       }
 
-      // Încearcă să găsească JSON în alte formate
+      // Try to find JSON in other formats
       const jsonRegex = /\{[\s\S]*\}/;
       const match = response.match(jsonRegex);
       if (match) {
@@ -136,10 +136,10 @@ I'm Jason, your JSON specialist. How can I help you today?`;
       console.warn('Could not extract JSON from AI response:', error);
       return null;
     }
-  }
+  };
 
   /**
-   * Extrage explicația din răspunsul AI
+   * Extract explanation from AI response
    */
   private extractExplanation(response: string): string {
     const explanationMatch = response.match(/\*\*Explanation:\*\*\s*(.*?)(?=\*\*|$)/s);
@@ -147,7 +147,7 @@ I'm Jason, your JSON specialist. How can I help you today?`;
   }
 
   /**
-   * Testează conexiunea la AI
+   * Test AI connection
    */
   async testConnection(): Promise<boolean> {
     try {
@@ -173,8 +173,8 @@ export const getAIService = (): AIService | null => {
   return aiServiceInstance;
 };
 
-// Utility function pentru validarea API key-ului
+// Utility function for API key validation
 export const isValidApiKey = (apiKey: string): boolean => {
   if (!apiKey || typeof apiKey !== 'string') return false;
-  return apiKey.length > 20; // Gemini keys sunt mai lungi
+  return apiKey.length > 20; // Gemini keys are longer
 };

@@ -6,11 +6,11 @@ interface FormattedAIResponseProps {
 
 const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) => {
   const formatResponse = (text: string) => {
-    // Împarte textul în paragrafe
+    // Split text into paragraphs
     const paragraphs = text.split('\n').filter(p => p.trim());
     
     return paragraphs.map((paragraph, index) => {
-      // Detectează listele numerotate
+      // Detect numbered lists
       if (paragraph.match(/^\d+\.\s/)) {
         const [number, ...content] = paragraph.split(/\.\s/);
         const title = content[0].split(':')[0];
@@ -31,7 +31,7 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Detectează exemple cu cod JSON
+      // Detect JSON code examples
       if (paragraph.includes('```json') || paragraph.includes('```') || paragraph.includes('{"') || paragraph.includes('"}')) {
         return (
           <div key={index} className="mb-3 p-3 bg-gray-900 rounded-lg border border-green-500">
@@ -44,7 +44,7 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Detectează exemple cu numere și string-uri
+      // Detect examples with numbers and strings
       if (paragraph.includes('"100"') || paragraph.includes('100') || paragraph.includes('true/false')) {
         return (
           <div key={index} className="mb-3 p-3 bg-blue-900 bg-opacity-30 rounded-lg border border-blue-400">
@@ -57,7 +57,7 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Detectează titluri cu ** sau :
+      // Detect titles with ** or :
       if (paragraph.includes('**') || paragraph.match(/^[A-Z][^.]*:$/)) {
         const cleanTitle = paragraph.replace(/\*\*/g, '').replace(/:$/, '');
         return (
@@ -68,7 +68,7 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Detectează warning-uri sau note importante
+      // Detect warnings or important notes
       if (paragraph.toLowerCase().includes('note') || paragraph.toLowerCase().includes('important') || paragraph.toLowerCase().includes('cannot provide')) {
         return (
           <div key={index} className="mb-3 p-3 bg-yellow-900 bg-opacity-30 border-l-4 border-yellow-400 rounded-r-lg">
@@ -81,7 +81,7 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Detectează sugestii sau recomandări
+      // Detect suggestions or recommendations
       if (paragraph.toLowerCase().includes('consider') || paragraph.toLowerCase().includes('suggest') || paragraph.toLowerCase().includes('recommend')) {
         return (
           <div key={index} className="mb-3 p-3 bg-green-900 bg-opacity-30 border-l-4 border-green-400 rounded-r-lg">
@@ -94,12 +94,12 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Detectează explicații sau definiții
+      // Detect explanations or definitions
       if (paragraph.toLowerCase().includes('explanation') || paragraph.toLowerCase().includes('this means') || paragraph.toLowerCase().includes('for example')) {
         return (
           <div key={index} className="mb-3 p-3 bg-indigo-900 bg-opacity-30 border-l-4 border-indigo-400 rounded-r-lg">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-indigo-400">�</span>
+              <span className="text-indigo-400">📖</span>
               <span className="text-xs text-indigo-300">Explanation</span>
             </div>
             <span className="text-indigo-200">{paragraph}</span>
@@ -107,7 +107,7 @@ const FormattedAIResponse: React.FC<FormattedAIResponseProps> = ({ response }) =
         );
       }
       
-      // Paragrafe normale
+      // Normal paragraphs
       return (
         <p key={index} className="mb-3 text-gray-300 leading-relaxed">
           {paragraph}
