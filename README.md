@@ -22,8 +22,8 @@ JSON Explorer is a modern, interactive web application for viewing, editing, and
 
 ## About files
 
-src/components/JSONTree.tsx is the main component for rendering the JSON tree structure. It handles the display of nodes, drag-and-drop functionality, and context menus for editing.
+- **src/components/JSONTree.tsx** is the main component for rendering the JSON tree structure. It handles the display of nodes, drag-and-drop functionality, and context menus for editing.
 
-src/hooks/useAI.ts is responsible for managing interactions with the AI assistant, including sending queries and processing responses.
+- **src/hooks/useAI.ts** is responsible for managing interactions with the AI assistant, including sending queries and processing responses.
 
-src/App.tsx is the main entry point of the application, integrating all components and managing state.
+- **src/App.tsx** is the main entry point of the application, integrating all components and managing state.
