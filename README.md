@@ -20,27 +20,10 @@ JSON Explorer is a modern, interactive web application for viewing, editing, and
 3. **Save and Download**: Save your changes and download the updated file. All versions are tracked in the history panel for easy recovery.
 4. **AI Assistance**: Ask questions or request modifications in natural language. The AI assistant can explain structures, validate data, and perform edits automatically.
 
-## Technologies Used
+## About files
 
-- React
-- TypeScript
-- Tailwind CSS
-- Vite
-- AI Integration (Google Gemini, OpenAI, Claude)
+src/components/JSONTree.tsx is the main component for rendering the JSON tree structure. It handles the display of nodes, drag-and-drop functionality, and context menus for editing.
 
-## Getting Started
+src/hooks/useAI.ts is responsible for managing interactions with the AI assistant, including sending queries and processing responses.
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/your-username/json-explorer.git
-   ```
-2. Install dependencies:
-   ```
-   npm install
-   ```
-3. Start the development server:
-   ```
-   npm run dev
-   ```
-4. Open your browser.
-
+src/App.tsx is the main entry point of the application, integrating all components and managing state.
